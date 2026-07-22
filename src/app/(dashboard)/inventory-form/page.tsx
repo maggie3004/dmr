@@ -16,6 +16,9 @@ export default async function InventoryFormPage() {
   const { data: suppliersData } = await supabase.from('suppliers').select('id, supplier_name');
   const suppliers = suppliersData?.map(s => ({ id: s.id, name: s.supplier_name })) || [];
 
+  const { data: materialsData } = await supabase.from('materials').select('material_name, default_unit').order('material_name');
+  const materials = materialsData || [];
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
@@ -24,7 +27,7 @@ export default async function InventoryFormPage() {
       </div>
       
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <InventoryFormClient suppliers={suppliers || []} />
+        <InventoryFormClient suppliers={suppliers} materials={materials} />
       </div>
     </div>
   );

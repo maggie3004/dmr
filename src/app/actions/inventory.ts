@@ -73,15 +73,38 @@ export async function submitInventoryForm(formData: FormData) {
     
     const dmr_number = `DMR-${currentYear}-${nextNumber.toString().padStart(6, '0')}`;
 
+    let finalMaterialName = formData.get("materialName") as string;
+    const otherMaterial = formData.get("otherMaterialName") as string;
+    const unit = formData.get("unit") as string;
+
+    if (finalMaterialName === "Other" && otherMaterial) {
+      finalMaterialName = otherMaterial;
+      
+      // Check if material already exists (case insensitive)
+      const { data: existingMaterial } = await supabase
+        .from('materials')
+        .select('id')
+        .ilike('material_name', otherMaterial)
+        .maybeSingle();
+        
+      if (!existingMaterial) {
+        // Insert new material to database
+        await supabase.from('materials').insert({
+          material_name: otherMaterial,
+          default_unit: unit
+        });
+      }
+    }
+
     // Prepare payload
     const payload = {
       dmr_number,
       arrival_date: formData.get("dateOfArrival"),
       supplier_id: formData.get("supplierId"),
-      material_name: formData.get("materialName"),
-      other_material: formData.get("otherMaterialName") || null,
+      material_name: finalMaterialName,
+      other_material: null,
       quantity: parseFloat(formData.get("quantity") as string),
-      unit: formData.get("unit"),
+      unit: unit,
       vehicle_number: formData.get("vehicleNumber"),
       invoice_number: formData.get("invoiceNumber"),
       material_image,

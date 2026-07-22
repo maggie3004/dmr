@@ -9,18 +9,7 @@ import { Loader2 } from "lucide-react";
 // Mock form submission action
 import { submitInventoryForm } from "@/app/actions/inventory";
 
-const materialUnits: Record<string, string> = {
-  Cement: "Bags",
-  Steel: "Kg",
-  Sand: "Brass",
-  Aggregate: "Brass",
-  Bricks: "Nos",
-  Paint: "Cans",
-  Tiles: "Boxes",
-  Pipes: "Pieces",
-  Electrical: "Pieces",
-  Plumbing: "Pieces",
-};
+
 
 const formSchema = z.object({
   dateOfArrival: z.string().min(1, "Date is required"),
@@ -40,7 +29,13 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function InventoryFormClient({ suppliers }: { suppliers: any[] }) {
+export function InventoryFormClient({ 
+  suppliers,
+  materials 
+}: { 
+  suppliers: any[];
+  materials: any[];
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [materialPhoto, setMaterialPhoto] = useState<File | null>(null);
@@ -80,7 +75,8 @@ export function InventoryFormClient({ suppliers }: { suppliers: any[] }) {
     const val = e.target.value;
     setValue("materialName", val);
     if (val && val !== "Other") {
-      setValue("unit", materialUnits[val] || "");
+      const selectedMaterial = materials.find(m => m.material_name === val);
+      setValue("unit", selectedMaterial?.default_unit || "");
     } else {
       setValue("unit", "");
     }
@@ -170,8 +166,8 @@ export function InventoryFormClient({ suppliers }: { suppliers: any[] }) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
           >
             <option value="">Select Material</option>
-            {Object.keys(materialUnits).map(m => (
-              <option key={m} value={m}>{m}</option>
+            {materials.map(m => (
+              <option key={m.material_name} value={m.material_name}>{m.material_name}</option>
             ))}
             <option value="Other">Other</option>
           </select>
