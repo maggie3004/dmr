@@ -8,10 +8,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export const dynamic = 'force-dynamic';
+
 export default async function InventoryFormPage() {
   const session = await auth();
   
-  const { data: suppliers } = await supabase.from('suppliers').select('id, supplier_name as name');
+  const { data: suppliersData } = await supabase.from('suppliers').select('id, supplier_name');
+  const suppliers = suppliersData?.map(s => ({ id: s.id, name: s.supplier_name })) || [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
