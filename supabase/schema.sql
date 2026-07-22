@@ -1,10 +1,23 @@
--- Create enums
-CREATE TYPE user_role AS ENUM ('Admin', 'Supervisor');
-CREATE TYPE user_status AS ENUM ('Active', 'Inactive');
-CREATE TYPE payment_status_enum AS ENUM ('Paid', 'Not Paid');
+-- Safe schema: uses IF NOT EXISTS and DO blocks to avoid errors on re-run
+
+-- Create enums (safe, won't error if already exists)
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('Admin', 'Supervisor');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE user_status AS ENUM ('Active', 'Inactive');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_status_enum AS ENUM ('Paid', 'Not Paid');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Create users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -15,7 +28,7 @@ CREATE TABLE users (
 );
 
 -- Create suppliers table
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     supplier_name VARCHAR(255) NOT NULL,
     contact_number VARCHAR(50),
@@ -25,7 +38,7 @@ CREATE TABLE suppliers (
 );
 
 -- Create materials table
-CREATE TABLE materials (
+CREATE TABLE IF NOT EXISTS materials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     material_name VARCHAR(255) NOT NULL,
     default_unit VARCHAR(50),
@@ -33,7 +46,7 @@ CREATE TABLE materials (
 );
 
 -- Create dmr_entries table
-CREATE TABLE dmr_entries (
+CREATE TABLE IF NOT EXISTS dmr_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     dmr_number VARCHAR(50) UNIQUE NOT NULL,
     arrival_date DATE NOT NULL,
@@ -62,14 +75,14 @@ ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dmr_entries ENABLE ROW LEVEL SECURITY;
 
--- Create basic policies (to be refined based on NextAuth connection)
--- Since we are bypassing Supabase Auth and using NextAuth with a custom users table,
--- we'll use a service_role key server-side or simple public policies for now if we use anon key.
--- Assuming we use the service_role key for all server actions, we don't strictly need RLS policies,
--- but if we use the anon key on the client, we would.
--- Given the requirement, we will use Server Actions with service_role key or Next.js API routes.
-
--- Insert initial Admin user (Password is 'admin123' hashed with bcrypt)
--- Using a bcrypt hash of 'admin123' -> $2a$10$wE/T5QZJ8P0e9bTf3Wj0uO/gB7G9r2YxS/x5XhPzQZ4e.O1Vj4dJ.
+-- Insert default Admin user (password = 'admin123' hashed with bcrypt)
+-- This will be skipped if the email already exists
 INSERT INTO users (name, email, password, role, status)
-VALUES ('Admin User', 'admin@dmr.com', '$2a$10$wE/T5QZJ8P0e9bTf3Wj0uO/gB7G9r2YxS/x5XhPzQZ4e.O1Vj4dJ.', 'Admin', 'Active');
+VALUES (
+    'Admin User',
+    'admin@dmr.com',
+    '$2a$10$wE/T5QZJ8P0e9bTf3Wj0uO/gB7G9r2YxS/x5XhPzQZ4e.O1Vj4dJ.',
+    'Admin',
+    'Active'
+)
+ON CONFLICT (email) DO NOTHING;
