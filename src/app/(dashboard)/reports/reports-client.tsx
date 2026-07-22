@@ -8,16 +8,16 @@ export function ReportsClient({ entries }: { entries: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredEntries = entries.filter(e => 
-    e.dmr_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.supplier.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.material_name.toLowerCase().includes(searchTerm.toLowerCase())
+    e.dmr_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.suppliers?.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.material_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const exportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(filteredEntries.map(e => ({
       "DMR Number": e.dmr_number,
       "Date": e.arrival_date,
-      "Supplier": e.supplier.supplier_name,
+      "Supplier": e.suppliers?.supplier_name || 'Unknown',
       "Material": e.material_name,
       "Quantity": e.quantity,
       "Unit": e.unit,
@@ -94,7 +94,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                 <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{entry.dmr_number}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.arrival_date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.supplier.supplier_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.suppliers?.supplier_name || 'Unknown'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.material_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.quantity} {entry.unit}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{entry.final_bill_amount.toLocaleString()}</td>

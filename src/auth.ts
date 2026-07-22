@@ -26,24 +26,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
           
-          // TEMPORARY BYPASS FOR PREVIEW
-          if (email === "admin@dmr.com") {
-            return {
-              id: "1",
-              name: "Admin User (Preview)",
-              email: "admin@dmr.com",
-              role: "Admin",
-            };
-          }
-          if (email === "supervisor@dmr.com") {
-            return {
-              id: "2",
-              name: "Supervisor (Preview)",
-              email: "supervisor@dmr.com",
-              role: "Supervisor",
-            };
-          }
-
           const { data: user, error } = await supabase
             .from("users")
             .select("*")

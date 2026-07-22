@@ -15,25 +15,10 @@ export default async function UsersPage() {
     redirect("/");
   }
 
-  // In a real app we'd fetch users from Supabase
-  const mockUsers = [
-    {
-      id: "1",
-      name: "Admin User",
-      email: "admin@dmr.com",
-      role: "Admin",
-      status: "Active",
-      created_at: "2026-07-22"
-    },
-    {
-      id: "2",
-      name: "Site Supervisor",
-      email: "supervisor@dmr.com",
-      role: "Supervisor",
-      status: "Active",
-      created_at: "2026-07-22"
-    }
-  ];
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, name, email, role, status, created_at')
+    .order('created_at', { ascending: false });
 
   return (
     <div className="space-y-6">
@@ -44,7 +29,7 @@ export default async function UsersPage() {
         </div>
       </div>
       
-      <UsersClient users={mockUsers} />
+      <UsersClient users={users || []} />
     </div>
   );
 }

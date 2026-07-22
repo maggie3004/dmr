@@ -11,14 +11,7 @@ const supabase = createClient(
 export default async function InventoryFormPage() {
   const session = await auth();
   
-  // In a real app we'd fetch suppliers from Supabase
-  // const { data: suppliers } = await supabase.from('suppliers').select('id, supplier_name');
-  
-  const mockSuppliers = [
-    { id: "1", name: "UltraTech Cement" },
-    { id: "2", name: "Tata Steel" },
-    { id: "3", name: "Local Sand Suppliers" },
-  ];
+  const { data: suppliers } = await supabase.from('suppliers').select('id, supplier_name as name');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -28,7 +21,7 @@ export default async function InventoryFormPage() {
       </div>
       
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <InventoryFormClient suppliers={mockSuppliers} />
+        <InventoryFormClient suppliers={suppliers || []} />
       </div>
     </div>
   );

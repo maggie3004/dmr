@@ -1,11 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Edit2, Key, Trash2 } from "lucide-react";
+import { Plus, Edit2, Key, Trash2, Loader2 } from "lucide-react";
+import { addUser, deleteUser } from "@/app/actions/users";
 
 export function UsersClient({ users }: { users: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAddUser = async (formData: FormData) => {
+    setIsSubmitting(true);
+    setError(null);
+    const res = await addUser(formData);
+    if (res.success) {
+      setIsAddOpen(false);
+    } else {
+      setError(res.error || "Failed to add user");
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this user?")) {
+      const res = await deleteUser(id);
+      if (!res.success) {
+        alert(res.error);
+      }
+    }
+  };
 
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,7 +88,7 @@ export function UsersClient({ users }: { users: any[] }) {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-3">
                   <button className="text-blue-600 hover:text-blue-900" title="Edit User"><Edit2 className="h-4 w-4" /></button>
                   <button className="text-amber-600 hover:text-amber-900" title="Reset Password"><Key className="h-4 w-4" /></button>
-                  <button className="text-red-600 hover:text-red-900" title="Delete User"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-900" title="Delete User"><Trash2 className="h-4 w-4" /></button>
                 </td>
               </tr>
             ))}
@@ -77,34 +101,47 @@ export function UsersClient({ users }: { users: any[] }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Add New User</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input type="text" className="w-full px-3 py-2 border rounded-md" />
+            {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+            <form action={handleAddUser}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input type="text" name="name" required className="w-full px-3 py-2 border rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" name="email" required className="w-full px-3 py-2 border rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select name="role" className="w-full px-3 py-2 border rounded-md">
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input type="password" name="password" required minLength={6} className="w-full px-3 py-2 border rounded-md" />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" className="w-full px-3 py-2 border rounded-md" />
+              <div className="mt-6 flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsAddOpen(false)}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center min-w-[100px]"
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save User"}
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select className="w-full px-3 py-2 border rounded-md">
-                  <option>Supervisor</option>
-                  <option>Admin</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button 
-                onClick={() => setIsAddOpen(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Save User
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

@@ -15,35 +15,10 @@ export default async function ReportsPage() {
     redirect("/");
   }
 
-  // Mock data since we can't seed DB easily here
-  const mockEntries = [
-    {
-      id: "1",
-      dmr_number: "DMR-2026-000001",
-      supplier: { supplier_name: "UltraTech Cement" },
-      material_name: "Cement",
-      quantity: 500,
-      unit: "Bags",
-      rate_per_unit: 350,
-      final_bill_amount: 175000,
-      payment_status: "Paid",
-      arrival_date: "2026-07-22",
-      vehicle_number: "MH-12-AB-1234"
-    },
-    {
-      id: "2",
-      dmr_number: "DMR-2026-000002",
-      supplier: { supplier_name: "Tata Steel" },
-      material_name: "Steel",
-      quantity: 1000,
-      unit: "Kg",
-      rate_per_unit: 65,
-      final_bill_amount: 65000,
-      payment_status: "Not Paid",
-      arrival_date: "2026-07-22",
-      vehicle_number: "MH-14-CD-5678"
-    }
-  ];
+  const { data: entries } = await supabase
+    .from('dmr_entries')
+    .select('*, suppliers(supplier_name)')
+    .order('created_at', { ascending: false });
 
   return (
     <div className="space-y-6">
@@ -52,7 +27,7 @@ export default async function ReportsPage() {
         <p className="text-gray-500">View, filter, and export detailed material reports.</p>
       </div>
       
-      <ReportsClient entries={mockEntries} />
+      <ReportsClient entries={entries || []} />
     </div>
   );
 }
