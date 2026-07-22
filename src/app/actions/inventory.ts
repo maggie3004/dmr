@@ -124,8 +124,8 @@ export async function submitInventoryForm(formData: FormData) {
       .insert(payload);
 
     if (error) {
-      console.error("Supabase insert error:", error);
-      return { success: false, error: "Database error" };
+      console.error("Supabase insert error:", error, "Payload:", payload);
+      return { success: false, error: `Database error: ${error.message} ${error.details || ''}` };
     }
 
     return { success: true, dmrNumber: dmr_number };

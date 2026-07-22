@@ -84,6 +84,7 @@ export function Sidebar({ role, isOpen, setIsOpen }: SidebarProps) {
           </button>
         </div>
       </div>
+    </div>
     </>
   );
 }
