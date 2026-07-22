@@ -27,12 +27,12 @@ const formSchema = z.object({
   supplierId: z.string().min(1, "Supplier is required"),
   materialName: z.string().min(1, "Material name is required"),
   otherMaterialName: z.string().optional(),
-  quantity: z.preprocess((val) => Number(val), z.number().min(0.01, "Quantity must be greater than 0")),
+  quantity: z.number({ message: "Quantity is required" }).min(0.01, "Quantity must be greater than 0"),
   unit: z.string().min(1, "Unit is required"),
   vehicleNumber: z.string().min(1, "Vehicle number is required"),
   invoiceNumber: z.string().min(1, "Invoice number is required"),
-  ratePerUnit: z.preprocess((val) => Number(val), z.number().min(0, "Rate must be positive")),
-  finalBillAmount: z.preprocess((val) => Number(val), z.number().min(0, "Bill amount must be positive")),
+  ratePerUnit: z.number({ message: "Rate is required" }).min(0, "Rate must be positive"),
+  finalBillAmount: z.number({ message: "Bill amount is required" }).min(0, "Bill amount must be positive"),
   paymentStatus: z.enum(["Paid", "Not Paid"]),
   paymentDate: z.string().optional(),
   remarks: z.string().optional(),
@@ -194,7 +194,7 @@ export function InventoryFormClient({ suppliers }: { suppliers: any[] }) {
           <input 
             type="number"
             step="any"
-            {...register("quantity")}
+            {...register("quantity", { valueAsNumber: true })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
           />
           {errors.quantity && <p className="text-red-500 text-xs">{errors.quantity.message}</p>}
@@ -235,7 +235,7 @@ export function InventoryFormClient({ suppliers }: { suppliers: any[] }) {
           <input 
             type="number"
             step="any"
-            {...register("ratePerUnit")}
+            {...register("ratePerUnit", { valueAsNumber: true })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
           />
           {errors.ratePerUnit && <p className="text-red-500 text-xs">{errors.ratePerUnit.message}</p>}
@@ -246,7 +246,7 @@ export function InventoryFormClient({ suppliers }: { suppliers: any[] }) {
           <input 
             type="number"
             step="any"
-            {...register("finalBillAmount")}
+            {...register("finalBillAmount", { valueAsNumber: true })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
             readOnly
           />
