@@ -14,9 +14,11 @@ import { signOut } from "next-auth/react";
 
 interface SidebarProps {
   role: string;
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   
   const navItems = [
@@ -30,7 +32,14 @@ export function Sidebar({ role }: SidebarProps) {
   const filteredNavItems = navItems.filter(item => item.roles.includes(role));
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col bg-white border-r border-gray-200">
+    <>
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 md:hidden" 
+          onClick={() => setIsOpen(false)} 
+        />
+      )}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex items-center h-16 px-6 border-b border-gray-200">
         <div className="flex items-center gap-2 text-blue-600 font-bold text-xl tracking-tight">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -47,6 +56,7 @@ export function Sidebar({ role }: SidebarProps) {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={() => setIsOpen(false)}
                 className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                   isActive 
                     ? "bg-blue-50 text-blue-700" 
@@ -74,6 +84,6 @@ export function Sidebar({ role }: SidebarProps) {
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

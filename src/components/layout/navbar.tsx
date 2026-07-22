@@ -7,13 +7,17 @@ interface NavbarProps {
     name?: string | null;
     role?: string | null;
   };
+  onMenuClick?: () => void;
 }
 
-export function Navbar({ user }: NavbarProps) {
+export function Navbar({ user, onMenuClick }: NavbarProps) {
   return (
     <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
       <div className="flex items-center md:hidden">
-        <button className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 p-2 rounded-md">
+        <button 
+          onClick={onMenuClick}
+          className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 p-2 rounded-md"
+        >
           <Menu className="h-6 w-6" />
         </button>
       </div>
