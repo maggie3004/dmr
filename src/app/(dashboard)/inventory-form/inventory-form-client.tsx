@@ -402,7 +402,7 @@ export function InventoryFormClient({
                             placeholder="Search supplier..." 
                             value={supplierSearch} 
                             onValueChange={setSupplierSearch}
-                            onInput={(e: React.ChangeEvent<HTMLInputElement>) => setSupplierSearch(e.currentTarget.value)} 
+                            onInput={(e) => setSupplierSearch(e.currentTarget.value)} 
                           />
                           <CommandList>
                             <CommandEmpty className="p-2">
@@ -478,7 +478,7 @@ export function InventoryFormClient({
                           placeholder="Search material..." 
                           value={materialSearch} 
                           onValueChange={setMaterialSearch}
-                          onInput={(e: React.ChangeEvent<HTMLInputElement>) => setMaterialSearch(e.currentTarget.value)}
+                          onInput={(e) => setMaterialSearch(e.currentTarget.value)}
                         />
                         <CommandList>
                           <CommandEmpty className="p-2">
