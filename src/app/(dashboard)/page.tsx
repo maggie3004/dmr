@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package2, Truck, Users, Clock, CheckCircle, BarChart3 } from "lucide-react";
+import { Package2, Truck, Users, Clock, CheckCircle, BarChart3, Calendar } from "lucide-react";
 import { auth } from "@/auth";
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,25 +13,33 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardPage() {
   const session = await auth();
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const firstDayOfMonth = new Date();
+  firstDayOfMonth.setDate(1);
+  const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
+
   // Fetch stats concurrently
   const [
     { count: totalDmrCount },
     { count: todayDmrCount },
+    { count: monthlyDmrCount },
     { count: totalSuppliersCount },
     { count: totalMaterialsCount },
     { data: allDmrs },
     { data: recentDmrs }
   ] = await Promise.all([
-    supabase.from('dmr_entries').select('*', { count: 'exact', head: true }),
-    supabase.from('dmr_entries').select('*', { count: 'exact', head: true }).eq('arrival_date', new Date().toISOString().split('T')[0]),
-    supabase.from('suppliers').select('*', { count: 'exact', head: true }),
-    supabase.from('materials').select('*', { count: 'exact', head: true }),
-    supabase.from('dmr_entries').select('payment_status, final_bill_amount'),
-    supabase.from('dmr_entries').select('id, dmr_number, material_name, quantity, unit, final_bill_amount, payment_status, suppliers(supplier_name)').order('created_at', { ascending: false }).limit(5)
+    supabase.from('dmr_entries').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('dmr_entries').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('arrival_date', todayStr),
+    supabase.from('dmr_entries').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('arrival_date', firstDayStr),
+    supabase.from('suppliers').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('materials').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('dmr_entries').select('payment_status, final_bill_amount, arrival_date').is('deleted_at', null),
+    supabase.from('dmr_entries').select('id, dmr_number, quantity, unit, final_bill_amount, payment_status, suppliers(supplier_name), materials(material_name)').is('deleted_at', null).order('created_at', { ascending: false }).limit(5)
   ]);
 
   let pendingPayments = 0;
   let paidBills = 0;
+  let monthlyExpense = 0;
   
   if (allDmrs) {
     for (const dmr of allDmrs) {
@@ -39,6 +47,10 @@ export default async function DashboardPage() {
         paidBills += Number(dmr.final_bill_amount) || 0;
       } else {
         pendingPayments += Number(dmr.final_bill_amount) || 0;
+      }
+
+      if (dmr.arrival_date >= firstDayStr) {
+        monthlyExpense += Number(dmr.final_bill_amount) || 0;
       }
     }
   }
@@ -50,12 +62,13 @@ export default async function DashboardPage() {
   };
 
   const stats = [
-    { title: "Total DMRs", value: totalDmrCount || 0, icon: Package2, color: "text-blue-600", bg: "bg-blue-100" },
-    { title: "Today's Entries", value: todayDmrCount || 0, icon: Truck, color: "text-emerald-600", bg: "bg-emerald-100" },
-    { title: "Total Suppliers", value: totalSuppliersCount || 0, icon: Users, color: "text-indigo-600", bg: "bg-indigo-100" },
-    { title: "Total Materials", value: totalMaterialsCount || 0, icon: Package2, color: "text-purple-600", bg: "bg-purple-100" },
-    { title: "Pending Payments", value: formatCurrency(pendingPayments), icon: Clock, color: "text-amber-600", bg: "bg-amber-100" },
+    { title: "Today's DMR", value: todayDmrCount || 0, icon: Truck, color: "text-blue-600", bg: "bg-blue-100" },
+    { title: "Monthly DMR", value: monthlyDmrCount || 0, icon: Calendar, color: "text-indigo-600", bg: "bg-indigo-100" },
+    { title: "Pending Bills", value: formatCurrency(pendingPayments), icon: Clock, color: "text-amber-600", bg: "bg-amber-100" },
     { title: "Paid Bills", value: formatCurrency(paidBills), icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-100" },
+    { title: "Monthly Expense", value: formatCurrency(monthlyExpense), icon: BarChart3, color: "text-rose-600", bg: "bg-rose-100" },
+    { title: "Total Suppliers", value: totalSuppliersCount || 0, icon: Users, color: "text-purple-600", bg: "bg-purple-100" },
+    { title: "Total Materials", value: totalMaterialsCount || 0, icon: Package2, color: "text-fuchsia-600", bg: "bg-fuchsia-100" },
   ];
 
   return (
@@ -65,7 +78,7 @@ export default async function DashboardPage() {
         <p className="text-gray-500">Welcome back, {session?.user?.name}. Here is what's happening today.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, i) => (
           <Card key={i} className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -95,7 +108,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{dmr.dmr_number}</p>
-                    <p className="text-sm text-gray-500 truncate">{((dmr.suppliers as any)?.supplier_name) || 'Unknown'} • {dmr.quantity} {dmr.unit}</p>
+                    <p className="text-sm text-gray-500 truncate">{((dmr.suppliers as any)?.supplier_name) || 'Unknown'} • {((dmr.materials as any)?.material_name) || 'Unknown'}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-medium text-gray-900">₹{Number(dmr.final_bill_amount || 0).toLocaleString()}</p>

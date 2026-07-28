@@ -13,10 +13,10 @@ export const dynamic = 'force-dynamic';
 export default async function InventoryFormPage() {
   const session = await auth();
   
-  const { data: suppliersData } = await supabase.from('suppliers').select('id, supplier_name');
-  const suppliers = suppliersData?.map(s => ({ id: s.id, name: s.supplier_name })) || [];
+  const { data: suppliersData } = await supabase.from('suppliers').select('id, supplier_name').is('deleted_at', null);
+  const suppliers = suppliersData || [];
 
-  const { data: materialsData } = await supabase.from('materials').select('material_name, default_unit').order('material_name');
+  const { data: materialsData } = await supabase.from('materials').select('id, material_name, default_unit, default_rate').is('deleted_at', null).order('material_name');
   const materials = materialsData || [];
 
   return (

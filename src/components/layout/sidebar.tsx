@@ -23,8 +23,12 @@ export function Sidebar({ role, isOpen, setIsOpen }: SidebarProps) {
   
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["Admin", "Supervisor"] },
-    { name: "Inventory Form", href: "/inventory-form", icon: ClipboardList, roles: ["Admin", "Supervisor"] },
+    { name: "New DMR", href: "/inventory-form", icon: ClipboardList, roles: ["Admin", "Supervisor"] },
+    { name: "My Entries", href: "/my-entries", icon: ClipboardList, roles: ["Supervisor"] },
+    { name: "All Entries", href: "/entries", icon: ClipboardList, roles: ["Admin"] },
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["Admin"] },
+    { name: "Suppliers", href: "/suppliers", icon: Users, roles: ["Admin"] },
+    { name: "Materials", href: "/materials", icon: LayoutDashboard, roles: ["Admin"] },
     { name: "Manage Users", href: "/users", icon: Users, roles: ["Admin"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["Admin", "Supervisor"] },
   ];

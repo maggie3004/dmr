@@ -6,16 +6,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-async function testSingle() {
-  const { data: latestEntry, error } = await supabase
-      .from('dmr_entries')
-      .select('dmr_number')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-      
-  console.log("Data:", latestEntry);
+async function promoteAdmin() {
+  const { data, error } = await supabase
+    .from('users')
+    .update({ role: 'Admin' })
+    .eq('email', 'admin@gmail.com');
   console.log("Error:", error);
+  console.log("Updated to Admin");
 }
 
-testSingle();
+promoteAdmin();

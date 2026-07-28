@@ -1,21 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Plus, Image as ImageIcon, Camera, Upload } from "lucide-react";
 
-// Mock form submission action
-import { submitInventoryForm } from "@/app/actions/inventory";
+import { submitInventoryForm, updateDmrEntry } from "@/app/actions/inventory";
+import { addSupplier } from "@/app/actions/suppliers";
+import { addMaterial } from "@/app/actions/materials";
 
-
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const formSchema = z.object({
   dateOfArrival: z.string().min(1, "Date is required"),
   supplierId: z.string().min(1, "Supplier is required"),
-  materialName: z.string().min(1, "Material name is required"),
-  otherMaterialName: z.string().optional(),
+  materialId: z.string().min(1, "Material is required"),
   quantity: z.number({ message: "Quantity is required" }).min(0.01, "Quantity must be greater than 0"),
   unit: z.string().min(1, "Unit is required"),
   vehicleNumber: z.string().min(1, "Vehicle number is required"),
@@ -30,55 +53,184 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function InventoryFormClient({ 
-  suppliers,
-  materials 
+  suppliers: initialSuppliers,
+  materials: initialMaterials,
+  initialData,
+  onSuccess
 }: { 
   suppliers: any[];
   materials: any[];
+  initialData?: any;
+  onSuccess?: () => void;
 }) {
+  const [suppliers, setSuppliers] = useState(initialSuppliers);
+  const [materials, setMaterials] = useState(initialMaterials);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [dmrNumber, setDmrNumber] = useState<string | null>(initialData?.dmr_number || null);
+
   const [materialPhoto, setMaterialPhoto] = useState<File | null>(null);
+  const [vehiclePhoto, setVehiclePhoto] = useState<File | null>(null);
   const [challanPhoto, setChallanPhoto] = useState<File | null>(null);
   const [billPhoto, setBillPhoto] = useState<File | null>(null);
+
+  const [materialPreview, setMaterialPreview] = useState<string | null>(initialData?.material_image || null);
+  const [vehiclePreview, setVehiclePreview] = useState<string | null>(initialData?.vehicle_photo || null);
+  const [challanPreview, setChallanPreview] = useState<string | null>(initialData?.challan_image || null);
+  const [billPreview, setBillPreview] = useState<string | null>(initialData?.bill_image || null);
+
+  const [supplierOpen, setSupplierOpen] = useState(false);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [materialSearch, setMaterialSearch] = useState("");
+
+  // Add New Supplier State
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+
+  // Add New Material State
+  const [addMaterialOpen, setAddMaterialOpen] = useState(false);
+  const [newMaterialName, setNewMaterialName] = useState("");
+  const [newMaterialUnit, setNewMaterialUnit] = useState("");
+  const [newMaterialRate, setNewMaterialRate] = useState("");
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
     reset,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      paymentStatus: "Not Paid",
-      materialName: "",
+      dateOfArrival: initialData?.arrival_date || new Date().toISOString().split('T')[0],
+      supplierId: initialData?.supplier_id || "",
+      materialId: initialData?.material_id || "",
+      quantity: initialData?.quantity || undefined,
+      unit: initialData?.unit || "",
+      vehicleNumber: initialData?.vehicle_number || "",
+      invoiceNumber: initialData?.invoice_number || "",
+      ratePerUnit: initialData?.rate_per_unit || undefined,
+      finalBillAmount: initialData?.final_bill_amount || undefined,
+      paymentStatus: initialData?.payment_status || "Not Paid",
+      paymentDate: initialData?.payment_date || "",
+      remarks: initialData?.remarks || "",
     },
   });
 
-  const watchMaterial = watch("materialName");
-  const watchPaymentStatus = watch("paymentStatus");
   const watchQuantity = watch("quantity");
   const watchRate = watch("ratePerUnit");
+  const watchPaymentStatus = watch("paymentStatus");
+  const watchMaterialId = watch("materialId");
 
   // Auto calculate final bill amount
-  if (watchQuantity && watchRate) {
-    const calculated = watchQuantity * watchRate;
-    const current = watch("finalBillAmount");
-    if (calculated !== current) {
+  useEffect(() => {
+    if (watchQuantity && watchRate) {
+      const calculated = watchQuantity * watchRate;
       setValue("finalBillAmount", calculated);
     }
-  }
+  }, [watchQuantity, watchRate, setValue]);
 
-  const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setValue("materialName", val);
-    if (val && val !== "Other") {
-      const selectedMaterial = materials.find(m => m.material_name === val);
-      setValue("unit", selectedMaterial?.default_unit || "");
+  // Handle auto-filling unit and rate when material changes
+  useEffect(() => {
+    if (watchMaterialId && !initialData) {
+      const mat = materials.find(m => m.id === watchMaterialId);
+      if (mat) {
+        if (mat.default_unit) setValue("unit", mat.default_unit);
+        if (mat.default_rate) setValue("ratePerUnit", Number(mat.default_rate));
+      }
+    }
+  }, [watchMaterialId, materials, setValue, initialData]);
+
+  // Scroll to first error
+  useEffect(() => {
+    const firstError = Object.keys(errors)[0];
+    if (firstError) {
+      const element = document.getElementsByName(firstError)[0];
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.focus();
+      }
+    }
+  }, [errors]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'material' | 'vehicle' | 'challan' | 'bill') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    if (type === 'material') {
+      setMaterialPhoto(file);
+      setMaterialPreview(previewUrl);
+    } else if (type === 'vehicle') {
+      setVehiclePhoto(file);
+      setVehiclePreview(previewUrl);
+    } else if (type === 'challan') {
+      setChallanPhoto(file);
+      setChallanPreview(previewUrl);
     } else {
-      setValue("unit", "");
+      setBillPhoto(file);
+      setBillPreview(previewUrl);
+    }
+  };
+
+  const handleRemoveImage = (type: 'material' | 'vehicle' | 'challan' | 'bill') => {
+    if (type === 'material') {
+      setMaterialPhoto(null);
+      setMaterialPreview(null);
+    } else if (type === 'vehicle') {
+      setVehiclePhoto(null);
+      setVehiclePreview(null);
+    } else if (type === 'challan') {
+      setChallanPhoto(null);
+      setChallanPreview(null);
+    } else {
+      setBillPhoto(null);
+      setBillPreview(null);
+    }
+  };
+
+  const handleAddSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddingSupplier(true);
+    const res = await addSupplier({ supplier_name: newSupplierName });
+    setIsAddingSupplier(false);
+    if (res.success && res.supplier) {
+      setSuppliers([...suppliers, res.supplier]);
+      setValue("supplierId", res.supplier.id);
+      setAddSupplierOpen(false);
+      setSupplierOpen(false);
+      setNewSupplierName("");
+    } else {
+      alert(res.error);
+    }
+  };
+
+  const handleAddMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddingMaterial(true);
+    const res = await addMaterial({ 
+      material_name: newMaterialName,
+      default_unit: newMaterialUnit,
+      default_rate: newMaterialRate ? Number(newMaterialRate) : undefined
+    });
+    setIsAddingMaterial(false);
+    if (res.success && res.material) {
+      setMaterials([...materials, res.material]);
+      setValue("materialId", res.material.id);
+      setAddMaterialOpen(false);
+      setMaterialOpen(false);
+      setNewMaterialName("");
+      setNewMaterialUnit("");
+      setNewMaterialRate("");
+    } else {
+      alert(res.error);
     }
   };
 
@@ -93,18 +245,36 @@ export function InventoryFormClient({
       });
       
       if (materialPhoto) formData.append("materialPhoto", materialPhoto);
+      if (vehiclePhoto) formData.append("vehiclePhoto", vehiclePhoto);
       if (challanPhoto) formData.append("challanPhoto", challanPhoto);
       if (billPhoto) formData.append("billPhoto", billPhoto);
 
-      const result = await submitInventoryForm(formData);
+      let result;
+      if (initialData) {
+        result = await updateDmrEntry(initialData.id, formData);
+      } else {
+        result = await submitInventoryForm(formData);
+      }
       
       if (result.success) {
         setSuccess(true);
-        reset();
-        setMaterialPhoto(null);
-        setChallanPhoto(null);
-        setBillPhoto(null);
-        alert("DMR Entry saved successfully! DMR Number: " + result.dmrNumber);
+        if (!initialData) {
+          reset();
+          setMaterialPhoto(null);
+          setVehiclePhoto(null);
+          setChallanPhoto(null);
+          setBillPhoto(null);
+          setMaterialPreview(null);
+          setVehiclePreview(null);
+          setChallanPreview(null);
+          setBillPreview(null);
+          if (result.dmrNumber) setDmrNumber(result.dmrNumber);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (onSuccess) {
+          onSuccess();
+        } else if (initialData) {
+          window.location.href = "/entries";
+        }
       } else {
         alert("Error saving form: " + result.error);
       }
@@ -115,224 +285,401 @@ export function InventoryFormClient({
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      {success && (
-        <div className="p-4 bg-green-50 text-green-700 rounded-lg border border-green-200">
-          Form submitted successfully!
+  const PhotoUpload = ({ id, label, state, setter, onRemove }: { id: any, label: string, state: string | null, setter: any, onRemove: () => void }) => (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium text-gray-700">{label}</Label>
+      {state ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between w-full p-3 border border-gray-200 rounded-lg bg-white shadow-sm">
+             <div className="flex items-center gap-3">
+               <div className="h-12 w-12 rounded overflow-hidden shadow-sm border border-gray-200">
+                 <img src={state} alt="Preview" className="w-full h-full object-cover" />
+               </div>
+               <span className="text-sm font-medium text-gray-700">Photo Attached</span>
+             </div>
+             <Check className="w-5 h-5 text-green-500" />
+          </div>
+          <div className="flex gap-2">
+            <label className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-md cursor-pointer transition-colors">
+              Change
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => setter(e, id)} />
+            </label>
+            <button type="button" onClick={onRemove} className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 rounded-md transition-colors">
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center w-full gap-3 pt-1">
+          <label className="flex items-center justify-center w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all group/cam">
+            <Camera className="w-4 h-4 text-gray-500 mr-2 group-hover/cam:text-blue-500 transition-colors" />
+            <span className="text-sm font-medium text-gray-700 group-hover/cam:text-blue-600 transition-colors">Take Photo</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setter(e, id)} />
+          </label>
+          
+          <div className="flex items-center w-full opacity-70">
+            <div className="flex-1 border-t border-gray-200"></div>
+            <span className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">OR</span>
+            <div className="flex-1 border-t border-gray-200"></div>
+          </div>
+          
+          <label className="flex items-center justify-center w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all group/up">
+            <Upload className="w-4 h-4 text-gray-500 mr-2 group-hover/up:text-blue-500 transition-colors" />
+            <span className="text-sm font-medium text-gray-700 group-hover/up:text-blue-600 transition-colors">Upload Photo</span>
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => setter(e, id)} />
+          </label>
         </div>
       )}
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">DMR Number</label>
-          <input 
-            type="text" 
-            disabled 
-            placeholder="Auto-generated on save" 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-          />
-        </div>
+    </div>
+  );
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Date of Arrival *</label>
-          <input 
-            type="date" 
-            {...register("dateOfArrival")}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-          />
-          {errors.dateOfArrival && <p className="text-red-500 text-xs">{errors.dateOfArrival.message}</p>}
-        </div>
+  const onError = () => {
+    alert("Please fill in all required fields marked with * before saving.");
+  };
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Supplier Name *</label>
-          <select 
-            {...register("supplierId")}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="">Select Supplier</option>
-            {suppliers.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          {errors.supplierId && <p className="text-red-500 text-xs">{errors.supplierId.message}</p>}
+  return (
+    <div className="max-w-3xl mx-auto pb-12">
+      {!initialData && (
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">New DMR Entry</h1>
+          <p className="text-gray-500 mt-2">Fill in the details below to record a new Daily Material Report.</p>
         </div>
+      )}
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Material Name *</label>
-          <select 
-            {...register("materialName")}
-            onChange={handleMaterialChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="">Select Material</option>
-            {materials.map(m => (
-              <option key={m.material_name} value={m.material_name}>{m.material_name}</option>
-            ))}
-            <option value="Other">Other</option>
-          </select>
-          {errors.materialName && <p className="text-red-500 text-xs">{errors.materialName.message}</p>}
-        </div>
-
-        {watchMaterial === "Other" && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Other Material Name *</label>
-            <input 
-              type="text" 
-              {...register("otherMaterialName")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+      {success && !initialData && (
+        <div className="mb-8 p-4 bg-green-50 text-green-800 rounded-lg border border-green-200 flex items-center gap-3">
+          <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+            <Check className="h-5 w-5 text-green-600" />
           </div>
-        )}
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Quantity *</label>
-          <input 
-            type="number"
-            step="any"
-            {...register("quantity", { valueAsNumber: true })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          {errors.quantity && <p className="text-red-500 text-xs">{errors.quantity.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Unit *</label>
-          <input 
-            type="text"
-            {...register("unit")}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          {errors.unit && <p className="text-red-500 text-xs">{errors.unit.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Vehicle Number *</label>
-          <input 
-            type="text"
-            {...register("vehicleNumber")}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          {errors.vehicleNumber && <p className="text-red-500 text-xs">{errors.vehicleNumber.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Invoice Number *</label>
-          <input 
-            type="text"
-            {...register("invoiceNumber")}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          {errors.invoiceNumber && <p className="text-red-500 text-xs">{errors.invoiceNumber.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Rate Per Unit *</label>
-          <input 
-            type="number"
-            step="any"
-            {...register("ratePerUnit", { valueAsNumber: true })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-          {errors.ratePerUnit && <p className="text-red-500 text-xs">{errors.ratePerUnit.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Final Bill Amount *</label>
-          <input 
-            type="number"
-            step="any"
-            {...register("finalBillAmount", { valueAsNumber: true })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-            readOnly
-          />
-          {errors.finalBillAmount && <p className="text-red-500 text-xs">{errors.finalBillAmount.message}</p>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-200">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Material Photo</label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={(e) => setMaterialPhoto(e.target.files?.[0] || null)}
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Challan Photo</label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={(e) => setChallanPhoto(e.target.files?.[0] || null)}
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Bill Photo</label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={(e) => setBillPhoto(e.target.files?.[0] || null)}
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-gray-700 block">Payment Status *</label>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2">
-              <input type="radio" value="Paid" {...register("paymentStatus")} className="text-blue-600 focus:ring-blue-500" />
-              <span className="text-sm text-gray-900">Paid</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" value="Not Paid" {...register("paymentStatus")} className="text-blue-600 focus:ring-blue-500" />
-              <span className="text-sm text-gray-900">Not Paid</span>
-            </label>
+          <div>
+            <p className="font-medium">DMR Entry saved successfully!</p>
+            {dmrNumber && <p className="text-sm text-green-600 mt-1">DMR Number: {dmrNumber}</p>}
           </div>
         </div>
+      )}
 
-        {watchPaymentStatus === "Paid" && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Payment Date *</label>
-            <input 
-              type="date"
-              {...register("paymentDate")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-        )}
+      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
+        
+        {/* SECTION 1: General Information */}
+        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className="text-lg text-gray-800">1. General Information</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {initialData && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>DMR Number</Label>
+                  <Input className="h-12 bg-gray-50 font-medium" value={initialData.dmr_number} readOnly />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Arrival Date *</Label>
+                <Input type="date" className="h-10" {...register("dateOfArrival")} />
+                {errors.dateOfArrival && <p className="text-red-500 text-xs">{errors.dateOfArrival.message}</p>}
+              </div>
 
-        <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-medium text-gray-700">Remarks</label>
-          <textarea
-            {...register("remarks")}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none resize-y"
-            placeholder="Add any additional notes here..."
-          ></textarea>
+              <div className="space-y-2">
+                <Label>Supplier *</Label>
+                <Controller
+                  name="supplierId"
+                  control={control}
+                  render={({ field }) => (
+                    <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
+                      <PopoverTrigger
+                        role="combobox"
+                        aria-expanded={supplierOpen}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full justify-between font-normal"
+                      >
+                        {field.value
+                          ? suppliers.find((s) => s.id === field.value)?.supplier_name || suppliers.find((s) => s.id === field.value)?.name
+                          : "Select a supplier..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 flex flex-col max-h-[300px]">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search supplier..." 
+                            value={supplierSearch} 
+                            onValueChange={setSupplierSearch}
+                            onInput={(e: React.ChangeEvent<HTMLInputElement>) => setSupplierSearch(e.currentTarget.value)} 
+                          />
+                          <CommandList>
+                            <CommandEmpty className="p-2">
+                              <Button 
+                                variant="ghost" 
+                                className="w-full justify-start text-blue-600 bg-blue-50/50"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setNewSupplierName(supplierSearch);
+                                  setAddSupplierOpen(true);
+                                }}
+                              >
+                                <Plus className="mr-2 h-4 w-4" /> Create "{supplierSearch}"
+                              </Button>
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {suppliers.map((s) => (
+                                <CommandItem
+                                  key={s.id}
+                                  value={s.supplier_name || s.name}
+                                  onSelect={() => {
+                                    field.onChange(s.id);
+                                    setSupplierOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${field.value === s.id ? "opacity-100" : "opacity-0"}`}
+                                  />
+                                  {s.supplier_name || s.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                />
+                {errors.supplierId && <p className="text-red-500 text-xs">{errors.supplierId.message}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 2: Material Information */}
+        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className="text-lg text-gray-800">2. Material Information</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <PhotoUpload id="material" label="Material Photo" state={materialPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('material')} />
+            
+            <div className="space-y-2 mt-4">
+              <Label>Material *</Label>
+              <Controller
+                name="materialId"
+                control={control}
+                render={({ field }) => (
+                  <Popover open={materialOpen} onOpenChange={setMaterialOpen}>
+                    <PopoverTrigger
+                      role="combobox"
+                      aria-expanded={materialOpen}
+                      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full justify-between font-normal"
+                    >
+                      {field.value
+                        ? materials.find((m) => m.id === field.value)?.material_name
+                        : "Select a material..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0 flex flex-col max-h-[300px]">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search material..." 
+                          value={materialSearch} 
+                          onValueChange={setMaterialSearch}
+                          onInput={(e: React.ChangeEvent<HTMLInputElement>) => setMaterialSearch(e.currentTarget.value)}
+                        />
+                        <CommandList>
+                          <CommandEmpty className="p-2">
+                            <Button 
+                              variant="ghost" 
+                              className="w-full justify-start text-blue-600 bg-blue-50/50"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setNewMaterialName(materialSearch);
+                                setAddMaterialOpen(true);
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" /> Create "{materialSearch}"
+                            </Button>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {materials.map((m) => (
+                              <CommandItem
+                                key={m.id}
+                                value={m.material_name}
+                                onSelect={() => {
+                                  field.onChange(m.id);
+                                  setMaterialOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${field.value === m.id ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {m.material_name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
+              {errors.materialId && <p className="text-red-500 text-xs">{errors.materialId.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Quantity *</Label>
+                <Input type="number" step="any" className="h-10" {...register("quantity", { valueAsNumber: true })} />
+                {errors.quantity && <p className="text-red-500 text-xs">{errors.quantity.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Unit *</Label>
+                <Input className="h-10 bg-gray-50" {...register("unit")} />
+                {errors.unit && <p className="text-red-500 text-xs">{errors.unit.message}</p>}
+              </div>
+              <div className="space-y-2 col-span-2 md:col-span-1">
+                <Label>Rate Per Unit (₹) *</Label>
+                <Input type="number" step="any" className="h-10" {...register("ratePerUnit", { valueAsNumber: true })} />
+                {errors.ratePerUnit && <p className="text-red-500 text-xs">{errors.ratePerUnit.message}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 3: Transport */}
+        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className="text-lg text-gray-800">3. Transport</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Vehicle Number *</Label>
+                  <Input className="h-10 uppercase" {...register("vehicleNumber")} />
+                  {errors.vehicleNumber && <p className="text-red-500 text-xs">{errors.vehicleNumber.message}</p>}
+                </div>
+                <PhotoUpload id="vehicle" label="Vehicle Photo" state={vehiclePreview} setter={handleImageChange} onRemove={() => handleRemoveImage('vehicle')} />
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Invoice Number *</Label>
+                  <Input className="h-10 uppercase" {...register("invoiceNumber")} />
+                  {errors.invoiceNumber && <p className="text-red-500 text-xs">{errors.invoiceNumber.message}</p>}
+                </div>
+                <PhotoUpload id="challan" label="Challan Photo" state={challanPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('challan')} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 4: Billing */}
+        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className="text-lg text-gray-800">4. Billing</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <PhotoUpload id="bill" label="Bill Photo" state={billPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('bill')} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Final Bill Amount (₹) *</Label>
+                <Input type="number" step="any" className="h-10 bg-gray-50 font-medium text-lg" readOnly {...register("finalBillAmount", { valueAsNumber: true })} />
+                {errors.finalBillAmount && <p className="text-red-500 text-xs">{errors.finalBillAmount.message}</p>}
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="block">Payment Status *</Label>
+                <div className="flex flex-col sm:flex-row gap-4 p-2 bg-gray-50 rounded-xl border border-gray-200">
+                  <label className="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm hover:border-blue-300 transition-colors">
+                    <input type="radio" value="Paid" {...register("paymentStatus")} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-sm font-medium">Paid</span>
+                  </label>
+                  <label className="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm hover:border-blue-300 transition-colors">
+                    <input type="radio" value="Not Paid" {...register("paymentStatus")} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-sm font-medium">Not Paid</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {watchPaymentStatus === "Paid" && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 md:w-1/2">
+                <Label>Payment Date *</Label>
+                <Input type="date" className="h-10" {...register("paymentDate")} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* SECTION 5: Remarks */}
+        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+            <CardTitle className="text-lg text-gray-800">5. Remarks</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-2">
+              <Textarea {...register("remarks")} rows={4} placeholder="Any additional notes..." className="resize-none" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex items-center justify-end gap-4 sticky bottom-4 p-4 bg-white/80 backdrop-blur-xl border border-gray-200/50 shadow-lg z-10 rounded-2xl">
+          {!initialData && (
+            <Button type="button" variant="ghost" onClick={() => reset()} className="w-24">
+              Reset
+            </Button>
+          )}
+          <Button type="submit" disabled={isSubmitting} className="w-40 h-12 text-base shadow-md bg-blue-600 hover:bg-blue-700 rounded-xl">
+            {isSubmitting ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : null}
+            {initialData ? "Update Entry" : "Save Entry"}
+          </Button>
         </div>
-      </div>
+      </form>
 
-      <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-        <button
-          type="button"
-          onClick={() => reset()}
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          Reset
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center min-w-[120px] disabled:opacity-70"
-        >
-          {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "Save Entry"}
-        </button>
-      </div>
-    </form>
+      {/* Add Supplier Dialog (Internal) */}
+      <Dialog open={addSupplierOpen} onOpenChange={setAddSupplierOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Supplier</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddSupplier} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Supplier Name</Label>
+              <Input required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={isAddingSupplier}>
+                {isAddingSupplier ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Material Dialog (Internal) */}
+      <Dialog open={addMaterialOpen} onOpenChange={setAddMaterialOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Material</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddMaterial} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Material Name</Label>
+              <Input required value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Default Unit</Label>
+                <Input value={newMaterialUnit} onChange={(e) => setNewMaterialUnit(e.target.value)} placeholder="e.g. Kg, Nos" />
+              </div>
+              <div className="space-y-2">
+                <Label>Default Rate</Label>
+                <Input type="number" step="any" value={newMaterialRate} onChange={(e) => setNewMaterialRate(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={isAddingMaterial}>
+                {isAddingMaterial ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS suppliers (
     contact_number VARCHAR(50),
     address TEXT,
     gst_number VARCHAR(50),
+    is_active BOOLEAN DEFAULT true,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,6 +48,13 @@ CREATE TABLE IF NOT EXISTS materials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     material_name VARCHAR(255) NOT NULL,
     default_unit VARCHAR(50),
+    default_rate NUMERIC,
+    is_active BOOLEAN DEFAULT true,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -51,13 +64,14 @@ CREATE TABLE IF NOT EXISTS dmr_entries (
     dmr_number VARCHAR(50) UNIQUE NOT NULL,
     arrival_date DATE NOT NULL,
     supplier_id UUID REFERENCES suppliers(id) ON DELETE RESTRICT,
-    material_name VARCHAR(255) NOT NULL,
+    material_id UUID REFERENCES materials(id) ON DELETE RESTRICT,
     other_material VARCHAR(255),
     quantity NUMERIC NOT NULL,
     unit VARCHAR(50) NOT NULL,
     vehicle_number VARCHAR(100),
     invoice_number VARCHAR(100),
     material_image TEXT,
+    vehicle_photo TEXT,
     challan_image TEXT,
     bill_image TEXT,
     rate_per_unit NUMERIC,
@@ -66,6 +80,10 @@ CREATE TABLE IF NOT EXISTS dmr_entries (
     payment_date DATE,
     remarks TEXT,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

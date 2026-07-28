@@ -40,13 +40,15 @@ export async function addUser(formData: FormData) {
       if (error.code === '23505') {
         return { success: false, error: "User with this email already exists" };
       }
-      return { success: false, error: error.message };
+      console.error("Users Action Error:", error);
+      return { success: false, error: "An unexpected error occurred. Please try again." };
     }
 
     revalidatePath("/users");
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || "Server error" };
+    console.error("Users Action Error:", error);
+    return { success: false, error: "An unexpected error occurred. Please try again." };
   }
 }
 
@@ -70,6 +72,7 @@ export async function deleteUser(userId: string) {
     revalidatePath("/users");
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message || "Server error" };
+    console.error("Users Action Error:", error);
+    return { success: false, error: "An unexpected error occurred. Please try again." };
   }
 }
