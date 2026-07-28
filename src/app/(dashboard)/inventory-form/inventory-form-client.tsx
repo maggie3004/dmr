@@ -10,6 +10,8 @@ import { submitInventoryForm, updateDmrEntry } from "@/app/actions/inventory";
 import { addSupplier } from "@/app/actions/suppliers";
 import { addMaterial } from "@/app/actions/materials";
 
+import { CameraCapture } from "@/components/ui/camera-capture";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,6 +84,8 @@ export function InventoryFormClient({
 
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
+  
+  const [cameraOpenFor, setCameraOpenFor] = useState<'material' | 'vehicle' | 'challan' | 'bill' | null>(null);
   
   const [supplierSearch, setSupplierSearch] = useState("");
   const [materialSearch, setMaterialSearch] = useState("");
@@ -196,6 +200,25 @@ export function InventoryFormClient({
     }
   };
 
+  const handleCameraCapture = (file: File) => {
+    if (!cameraOpenFor) return;
+    
+    const previewUrl = URL.createObjectURL(file);
+    if (cameraOpenFor === 'material') {
+      setMaterialPhoto(file);
+      setMaterialPreview(previewUrl);
+    } else if (cameraOpenFor === 'vehicle') {
+      setVehiclePhoto(file);
+      setVehiclePreview(previewUrl);
+    } else if (cameraOpenFor === 'challan') {
+      setChallanPhoto(file);
+      setChallanPreview(previewUrl);
+    } else {
+      setBillPhoto(file);
+      setBillPreview(previewUrl);
+    }
+  };
+
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddingSupplier(true);
@@ -285,7 +308,7 @@ export function InventoryFormClient({
     }
   };
 
-  const PhotoUpload = ({ id, label, state, setter, onRemove }: { id: any, label: string, state: string | null, setter: any, onRemove: () => void }) => (
+  const PhotoUpload = ({ id, label, state, setter, onRemove, onCameraClick }: { id: any, label: string, state: string | null, setter: any, onRemove: () => void, onCameraClick: () => void }) => (
     <div className="space-y-2">
       <Label className="text-sm font-medium text-gray-700">{label}</Label>
       {state ? (
@@ -300,10 +323,9 @@ export function InventoryFormClient({
              <Check className="w-5 h-5 text-green-500" />
           </div>
           <div className="flex gap-2">
-            <label className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-md cursor-pointer transition-colors">
-              Change
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => setter(e, id)} />
-            </label>
+            <button type="button" onClick={onCameraClick} className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-md transition-colors">
+              Retake
+            </button>
             <button type="button" onClick={onRemove} className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 rounded-md transition-colors">
               Remove
             </button>
@@ -311,11 +333,10 @@ export function InventoryFormClient({
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center w-full gap-3 pt-1">
-          <label className="flex items-center justify-center w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all group/cam">
+          <button type="button" onClick={onCameraClick} className="flex items-center justify-center w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all group/cam">
             <Camera className="w-4 h-4 text-gray-500 mr-2 group-hover/cam:text-blue-500 transition-colors" />
             <span className="text-sm font-medium text-gray-700 group-hover/cam:text-blue-600 transition-colors">Take Photo</span>
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setter(e, id)} />
-          </label>
+          </button>
           
           <div className="flex items-center w-full opacity-70">
             <div className="flex-1 border-t border-gray-200"></div>
@@ -453,7 +474,7 @@ export function InventoryFormClient({
             <CardTitle className="text-lg text-gray-800">2. Material Information</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <PhotoUpload id="material" label="Material Photo" state={materialPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('material')} />
+            <PhotoUpload id="material" label="Material Photo" state={materialPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('material')} onCameraClick={() => setCameraOpenFor('material')} />
             
             <div className="space-y-2 mt-4">
               <Label>Material *</Label>
@@ -553,7 +574,7 @@ export function InventoryFormClient({
                   <Input className="h-10 uppercase" {...register("vehicleNumber")} />
                   {errors.vehicleNumber && <p className="text-red-500 text-xs">{errors.vehicleNumber.message}</p>}
                 </div>
-                <PhotoUpload id="vehicle" label="Vehicle Photo" state={vehiclePreview} setter={handleImageChange} onRemove={() => handleRemoveImage('vehicle')} />
+                <PhotoUpload id="vehicle" label="Vehicle Photo" state={vehiclePreview} setter={handleImageChange} onRemove={() => handleRemoveImage('vehicle')} onCameraClick={() => setCameraOpenFor('vehicle')} />
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -561,7 +582,7 @@ export function InventoryFormClient({
                   <Input className="h-10 uppercase" {...register("invoiceNumber")} />
                   {errors.invoiceNumber && <p className="text-red-500 text-xs">{errors.invoiceNumber.message}</p>}
                 </div>
-                <PhotoUpload id="challan" label="Challan Photo" state={challanPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('challan')} />
+                <PhotoUpload id="challan" label="Challan Photo" state={challanPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('challan')} onCameraClick={() => setCameraOpenFor('challan')} />
               </div>
             </div>
           </CardContent>
@@ -573,7 +594,7 @@ export function InventoryFormClient({
             <CardTitle className="text-lg text-gray-800">4. Billing</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <PhotoUpload id="bill" label="Bill Photo" state={billPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('bill')} />
+            <PhotoUpload id="bill" label="Bill Photo" state={billPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('bill')} onCameraClick={() => setCameraOpenFor('bill')} />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -680,6 +701,12 @@ export function InventoryFormClient({
           </form>
         </DialogContent>
       </Dialog>
+
+      <CameraCapture 
+        open={cameraOpenFor !== null} 
+        onOpenChange={(open) => !open && setCameraOpenFor(null)} 
+        onCapture={handleCameraCapture} 
+      />
     </div>
   );
 }
