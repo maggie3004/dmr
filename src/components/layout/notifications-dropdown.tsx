@@ -110,7 +110,7 @@ export function NotificationsDropdown() {
                         <p className="text-sm font-medium text-gray-900">{notification.title}</p>
                         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{notification.description}</p>
                         <p className="text-[11px] text-gray-400 mt-2 font-medium">
-                          {formatDistanceToNow(new Date(notification.date), { addSuffix: true })}
+                          {formatDistanceToNow(notification.date)}
                         </p>
                       </div>
                       {!notification.read && (
