@@ -20,15 +20,8 @@ export default async function InventoryFormPage() {
   const materials = materialsData || [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Inventory Form</h1>
-        <p className="text-gray-500">Submit a Daily Material Report (DMR).</p>
-      </div>
-      
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <InventoryFormClient suppliers={suppliers} materials={materials} />
-      </div>
+    <div className="max-w-4xl mx-auto">
+      <InventoryFormClient suppliers={suppliers} materials={materials} />
     </div>
   );
 }

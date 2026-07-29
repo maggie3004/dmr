@@ -37,8 +37,7 @@ export async function addMaterial(data: { material_name: string; default_unit?: 
 
     if (error) throw error;
     
-    revalidatePath("/materials");
-    revalidatePath("/inventory-form");
+    revalidatePath("/", "layout");
     return { success: true, material: newMaterial };
   } catch (error: any) {
     console.error("Materials Action Error:", error);
@@ -73,8 +72,7 @@ export async function updateMaterial(id: string, data: { material_name: string; 
 
     if (error) throw error;
     
-    revalidatePath("/materials");
-    revalidatePath("/inventory-form");
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
     console.error("Materials Action Error:", error);
@@ -97,7 +95,7 @@ export async function deleteMaterial(id: string) {
 
     if (error) throw error;
     
-    revalidatePath("/materials");
+    revalidatePath("/", "layout");
     revalidatePath("/inventory-form");
     return { success: true };
   } catch (error: any) {

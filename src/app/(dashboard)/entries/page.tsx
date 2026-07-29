@@ -29,12 +29,10 @@ export default async function EntriesPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">All Entries</h1>
-          <p className="text-gray-500">View and manage all Daily Material Reports.</p>
-        </div>
+    <div className="space-y-6 md:space-y-8 w-full max-w-full overflow-hidden">
+      <div className="text-center mb-6 md:mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">All Entries</h1>
+        <p className="text-gray-500 mt-1">View and manage all Daily Material Reports.</p>
       </div>
       
       <EntriesClient 

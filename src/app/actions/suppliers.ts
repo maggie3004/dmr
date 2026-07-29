@@ -37,8 +37,7 @@ export async function addSupplier(data: { supplier_name: string; contact_number?
 
     if (error) throw error;
     
-    revalidatePath("/suppliers");
-    revalidatePath("/inventory-form");
+    revalidatePath("/", "layout");
     return { success: true, supplier: newSupplier };
   } catch (error: any) {
     console.error("Suppliers Action Error:", error);
@@ -73,8 +72,7 @@ export async function updateSupplier(id: string, data: { supplier_name: string; 
 
     if (error) throw error;
     
-    revalidatePath("/suppliers");
-    revalidatePath("/inventory-form");
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
     console.error("Suppliers Action Error:", error);
@@ -97,7 +95,7 @@ export async function deleteSupplier(id: string) {
 
     if (error) throw error;
     
-    revalidatePath("/suppliers");
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
     console.error("Suppliers Action Error:", error);

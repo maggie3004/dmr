@@ -24,10 +24,10 @@ export default async function ReportsPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 md:space-y-8">
+      <div className="text-center mb-6 md:mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reports Module</h1>
-        <p className="text-gray-500">View, filter, and export detailed material reports.</p>
+        <p className="text-gray-500 mt-1">View, filter, and export detailed material reports.</p>
       </div>
       
       <ReportsClient entries={entries || []} />

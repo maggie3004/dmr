@@ -97,7 +97,7 @@ export function MaterialsClient({ materials }: { materials: any[] }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -162,9 +162,10 @@ export function MaterialsClient({ materials }: { materials: any[] }) {
         </Dialog>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-slate-50/80">
             <TableRow>
               <TableHead>Material Name</TableHead>
               <TableHead>Default Unit</TableHead>
@@ -208,6 +209,44 @@ export function MaterialsClient({ materials }: { materials: any[] }) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {filteredMaterials.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500 shadow-sm">
+            No materials found.
+          </div>
+        ) : (
+          filteredMaterials.map((material) => (
+            <div key={material.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-3">
+              <div className="flex justify-between items-start border-b border-gray-50 pb-2">
+                <div>
+                  <div className="font-bold text-gray-900 text-lg">{material.material_name}</div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    <span className="font-medium text-gray-700">Unit:</span> {material.default_unit || "-"} 
+                    <span className="mx-2">•</span> 
+                    <span className="font-medium text-gray-700">Rate:</span> {material.default_rate ? `₹${material.default_rate}` : "-"}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleEdit(material)}
+                    className="p-2 text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 rounded-lg transition"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(material.id)}
+                    className="p-2 text-gray-500 hover:text-red-600 bg-gray-50 hover:bg-red-50 rounded-lg transition"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

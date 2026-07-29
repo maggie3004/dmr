@@ -72,10 +72,10 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 md:space-y-8">
+      <div className="text-center mb-6 md:mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-        <p className="text-gray-500">Welcome back, {session?.user?.name}. Here is what's happening today.</p>
+        <p className="text-gray-500 mt-1">Welcome back, {session?.user?.name}. Here is what's happening today.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 border-none shadow-sm">
+        <Card className="md:col-span-2 lg:col-span-4 border-none shadow-sm">
           <CardHeader>
             <CardTitle>Recent DMR Entries</CardTitle>
           </CardHeader>
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="col-span-3 border-none shadow-sm">
+        <Card className="md:col-span-2 lg:col-span-3 border-none shadow-sm">
           <CardHeader>
             <CardTitle>Material Distribution</CardTitle>
           </CardHeader>

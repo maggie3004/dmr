@@ -14,7 +14,7 @@ export function DashboardLayoutClient({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar 
         role={user.role ?? "Supervisor"} 
         isOpen={isMobileMenuOpen} 

@@ -41,8 +41,8 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   const materials = materialsData || [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
+      <div className="flex items-center justify-center relative mb-6 md:mb-8">
         <Link href="/entries" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
@@ -52,13 +52,11 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
       
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <InventoryFormClient 
-          suppliers={suppliers} 
-          materials={materials} 
-          initialData={entry} 
-        />
-      </div>
+      <InventoryFormClient 
+        suppliers={suppliers} 
+        materials={materials} 
+        initialData={entry} 
+      />
     </div>
   );
 }

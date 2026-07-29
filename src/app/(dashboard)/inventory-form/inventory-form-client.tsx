@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Check, ChevronsUpDown, Plus, Image as ImageIcon, Camera, Upload } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Plus, Image as ImageIcon, Camera, Upload, ScanLine } from "lucide-react";
+import Tesseract from 'tesseract.js';
 
 import { submitInventoryForm, updateDmrEntry } from "@/app/actions/inventory";
 import { addSupplier } from "@/app/actions/suppliers";
@@ -49,6 +50,9 @@ const formSchema = z.object({
   finalBillAmount: z.number({ message: "Bill amount is required" }).min(0, "Bill amount must be positive"),
   paymentStatus: z.enum(["Paid", "Not Paid"]),
   paymentDate: z.string().optional(),
+  gstApplicable: z.boolean().default(false),
+  gstPercentage: z.number().optional(),
+  gstAmount: z.number().optional(),
   remarks: z.string().optional(),
 });
 
@@ -90,10 +94,11 @@ export function InventoryFormClient({
   const [supplierSearch, setSupplierSearch] = useState("");
   const [materialSearch, setMaterialSearch] = useState("");
 
-  // Add New Supplier State
   const [addSupplierOpen, setAddSupplierOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   // Add New Material State
   const [addMaterialOpen, setAddMaterialOpen] = useState(false);
@@ -124,6 +129,9 @@ export function InventoryFormClient({
       finalBillAmount: initialData?.final_bill_amount || undefined,
       paymentStatus: initialData?.payment_status || "Not Paid",
       paymentDate: initialData?.payment_date || "",
+      gstApplicable: initialData?.gst_applicable || false,
+      gstPercentage: initialData?.gst_percentage || undefined,
+      gstAmount: initialData?.gst_amount || undefined,
       remarks: initialData?.remarks || "",
     },
   });
@@ -132,14 +140,23 @@ export function InventoryFormClient({
   const watchRate = watch("ratePerUnit");
   const watchPaymentStatus = watch("paymentStatus");
   const watchMaterialId = watch("materialId");
+  const watchGstApplicable = watch("gstApplicable");
+  const watchGstPercentage = watch("gstPercentage");
 
   // Auto calculate final bill amount
   useEffect(() => {
     if (watchQuantity && watchRate) {
-      const calculated = watchQuantity * watchRate;
+      let calculated = watchQuantity * watchRate;
+      if (watchGstApplicable && watchGstPercentage) {
+        const gstAmount = (calculated * watchGstPercentage) / 100;
+        setValue("gstAmount", gstAmount);
+        calculated += gstAmount;
+      } else {
+        setValue("gstAmount", undefined);
+      }
       setValue("finalBillAmount", calculated);
     }
-  }, [watchQuantity, watchRate, setValue]);
+  }, [watchQuantity, watchRate, watchGstApplicable, watchGstPercentage, setValue]);
 
   // Handle auto-filling unit and rate when material changes
   useEffect(() => {
@@ -151,6 +168,55 @@ export function InventoryFormClient({
       }
     }
   }, [watchMaterialId, materials, setValue, initialData]);
+
+  // OCR for Vehicle Photo
+  useEffect(() => {
+    if (vehiclePreview) {
+      const performOCR = async () => {
+        setIsOcrLoading(true);
+        try {
+          const worker = await Tesseract.createWorker('eng');
+          await worker.setParameters({
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
+          });
+          
+          const result = await worker.recognize(vehiclePreview);
+          await worker.terminate();
+
+          const rawText = result.data.text || "";
+          const cleanText = rawText.replace(/[^A-Z0-9]/gi, '');
+          
+          // Pattern 1: Standard (MH12AB1234)
+          const standardRegex = /[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}/i;
+          // Pattern 2: BH Series (22BH1234A)
+          const bhRegex = /[0-9]{2}BH[0-9]{4}[A-Z]{1,2}/i;
+          
+          let match = cleanText.match(standardRegex);
+          if (!match) match = cleanText.match(bhRegex);
+          
+          if (!match) {
+            const possible = rawText.split(/\s+/).map(s => s.replace(/[^A-Z0-9]/gi, '')).filter(s => s.length >= 6 && s.length <= 11 && /[0-9]/.test(s) && /[A-Z]/i.test(s));
+            if (possible.length > 0) {
+              match = [possible[0]];
+            } else if (cleanText.length >= 4) {
+              match = [cleanText.substring(0, 12)];
+            }
+          }
+          
+          if (match && match[0]) {
+            setValue("vehicleNumber", match[0].toUpperCase(), { shouldValidate: true });
+          } else {
+            console.log("OCR failed to find a valid license plate pattern. Raw text:", rawText);
+          }
+        } catch (err) {
+          console.error("OCR Error", err);
+        } finally {
+          setIsOcrLoading(false);
+        }
+      };
+      performOCR();
+    }
+  }, [vehiclePreview, setValue]);
 
   // Scroll to first error
   useEffect(() => {
@@ -323,18 +389,18 @@ export function InventoryFormClient({
              <Check className="w-5 h-5 text-green-500" />
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={onCameraClick} className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-md transition-colors">
+            <button type="button" onClick={onCameraClick} className="flex-1 flex items-center justify-center h-11 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-lg transition-colors active:bg-blue-200">
               Retake
             </button>
-            <button type="button" onClick={onRemove} className="flex-1 flex items-center justify-center h-9 text-xs font-medium text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 rounded-md transition-colors">
+            <button type="button" onClick={onRemove} className="flex-1 flex items-center justify-center h-11 text-sm font-medium text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg transition-colors active:bg-red-200">
               Remove
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center w-full gap-3 pt-1">
-          <button type="button" onClick={onCameraClick} className="flex items-center justify-center w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all group/cam">
-            <Camera className="w-4 h-4 text-gray-500 mr-2 group-hover/cam:text-blue-500 transition-colors" />
+          <button type="button" onClick={onCameraClick} className="flex items-center justify-center w-full h-12 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all active:bg-gray-100 group/cam">
+            <Camera className="w-5 h-5 text-gray-500 mr-2 group-hover/cam:text-blue-500 transition-colors" />
             <span className="text-sm font-medium text-gray-700 group-hover/cam:text-blue-600 transition-colors">Take Photo</span>
           </button>
           
@@ -344,8 +410,8 @@ export function InventoryFormClient({
             <div className="flex-1 border-t border-gray-200"></div>
           </div>
           
-          <label className="flex items-center justify-center w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all group/up">
-            <Upload className="w-4 h-4 text-gray-500 mr-2 group-hover/up:text-blue-500 transition-colors" />
+          <label className="flex items-center justify-center w-full h-12 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all active:bg-gray-100 group/up">
+            <Upload className="w-5 h-5 text-gray-500 mr-2 group-hover/up:text-blue-500 transition-colors" />
             <span className="text-sm font-medium text-gray-700 group-hover/up:text-blue-600 transition-colors">Upload Photo</span>
             <input type="file" accept="image/*" className="hidden" onChange={(e) => setter(e, id)} />
           </label>
@@ -361,7 +427,7 @@ export function InventoryFormClient({
   return (
     <div className="max-w-3xl mx-auto pb-12">
       {!initialData && (
-        <div className="mb-8">
+        <div className="text-center mb-4 md:mb-6">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">New DMR Entry</h1>
           <p className="text-gray-500 mt-2">Fill in the details below to record a new Daily Material Report.</p>
         </div>
@@ -379,24 +445,24 @@ export function InventoryFormClient({
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6 md:space-y-8">
         
         {/* SECTION 1: General Information */}
-        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
-            <CardTitle className="text-lg text-gray-800">1. General Information</CardTitle>
+        <Card className="border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50/50 border-b border-gray-100 pb-3 pt-4 px-4 md:px-6">
+            <CardTitle className="text-base md:text-lg text-slate-800 font-semibold tracking-tight">1. General Information</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {initialData && (
                 <div className="space-y-2 md:col-span-2">
                   <Label>DMR Number</Label>
-                  <Input className="h-12 bg-gray-50 font-medium" value={initialData.dmr_number} readOnly />
+                  <Input className="h-10 md:h-12 bg-slate-50/50 font-medium border-gray-200 text-slate-600" value={initialData.dmr_number} readOnly />
                 </div>
               )}
               <div className="space-y-2">
                 <Label>Arrival Date *</Label>
-                <Input type="date" className="h-10" {...register("dateOfArrival")} />
+                <Input type="date" className="h-10 md:h-12 text-sm md:text-base bg-white border-gray-200 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all shadow-sm" {...register("dateOfArrival")} />
                 {errors.dateOfArrival && <p className="text-red-500 text-xs">{errors.dateOfArrival.message}</p>}
               </div>
 
@@ -410,7 +476,7 @@ export function InventoryFormClient({
                       <PopoverTrigger
                         role="combobox"
                         aria-expanded={supplierOpen}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full justify-between font-normal"
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm md:text-base ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-white hover:bg-slate-50 h-10 md:h-12 px-3 py-2 w-full justify-between font-normal shadow-sm"
                       >
                         {field.value
                           ? suppliers.find((s) => s.id === field.value)?.supplier_name || suppliers.find((s) => s.id === field.value)?.name
@@ -469,9 +535,9 @@ export function InventoryFormClient({
         </Card>
 
         {/* SECTION 2: Material Information */}
-        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
-            <CardTitle className="text-lg text-gray-800">2. Material Information</CardTitle>
+        <Card className="border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50/50 border-b border-gray-100 pb-3 pt-4 px-4 md:px-6">
+            <CardTitle className="text-base md:text-lg text-slate-800 font-semibold tracking-tight">2. Material Information</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             <PhotoUpload id="material" label="Material Photo" state={materialPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('material')} onCameraClick={() => setCameraOpenFor('material')} />
@@ -486,7 +552,7 @@ export function InventoryFormClient({
                     <PopoverTrigger
                       role="combobox"
                       aria-expanded={materialOpen}
-                      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full justify-between font-normal"
+                      className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm md:text-base ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-white hover:bg-slate-50 h-10 md:h-12 px-3 py-2 w-full justify-between font-normal shadow-sm"
                     >
                       {field.value
                         ? materials.find((m) => m.id === field.value)?.material_name
@@ -544,62 +610,93 @@ export function InventoryFormClient({
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Quantity *</Label>
-                <Input type="number" step="any" className="h-10" {...register("quantity", { valueAsNumber: true })} />
+                <Input type="number" step="any" className="h-12 text-base" {...register("quantity", { valueAsNumber: true })} />
                 {errors.quantity && <p className="text-red-500 text-xs">{errors.quantity.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Unit *</Label>
-                <Input className="h-10 bg-gray-50" {...register("unit")} />
+                <Input className="h-12 bg-gray-50 text-base" {...register("unit")} />
                 {errors.unit && <p className="text-red-500 text-xs">{errors.unit.message}</p>}
               </div>
               <div className="space-y-2 col-span-2 md:col-span-1">
                 <Label>Rate Per Unit (₹) *</Label>
-                <Input type="number" step="any" className="h-10" {...register("ratePerUnit", { valueAsNumber: true })} />
+                <Input type="number" step="any" className="h-12 text-base" {...register("ratePerUnit", { valueAsNumber: true })} />
                 {errors.ratePerUnit && <p className="text-red-500 text-xs">{errors.ratePerUnit.message}</p>}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* SECTION 3: Transport */}
-        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
-            <CardTitle className="text-lg text-gray-800">3. Transport</CardTitle>
+        {/* SECTION 3: Vehicle Information */}
+        <Card className="border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50/50 border-b border-gray-100 pb-3 pt-4 px-4 md:px-6">
+            <CardTitle className="text-base md:text-lg text-slate-800 font-semibold tracking-tight">3. Vehicle Information</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label>Vehicle Number *</Label>
-                  <Input className="h-10 uppercase" {...register("vehicleNumber")} />
-                  {errors.vehicleNumber && <p className="text-red-500 text-xs">{errors.vehicleNumber.message}</p>}
+                  {isOcrLoading && (
+                    <span className="text-xs text-blue-600 flex items-center gap-1 font-medium animate-pulse">
+                      <ScanLine className="w-3 h-3" /> Scanning...
+                    </span>
+                  )}
                 </div>
-                <PhotoUpload id="vehicle" label="Vehicle Photo" state={vehiclePreview} setter={handleImageChange} onRemove={() => handleRemoveImage('vehicle')} onCameraClick={() => setCameraOpenFor('vehicle')} />
+                <Input className="h-11 uppercase text-base" {...register("vehicleNumber")} />
+                {errors.vehicleNumber && <p className="text-red-500 text-xs">{errors.vehicleNumber.message}</p>}
               </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Invoice Number *</Label>
-                  <Input className="h-10 uppercase" {...register("invoiceNumber")} />
-                  {errors.invoiceNumber && <p className="text-red-500 text-xs">{errors.invoiceNumber.message}</p>}
-                </div>
-                <PhotoUpload id="challan" label="Challan Photo" state={challanPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('challan')} onCameraClick={() => setCameraOpenFor('challan')} />
-              </div>
+              <PhotoUpload id="vehicle" label="Vehicle Photo" state={vehiclePreview} setter={handleImageChange} onRemove={() => handleRemoveImage('vehicle')} onCameraClick={() => setCameraOpenFor('vehicle')} />
             </div>
           </CardContent>
         </Card>
 
-        {/* SECTION 4: Billing */}
-        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
-            <CardTitle className="text-lg text-gray-800">4. Billing</CardTitle>
+        {/* SECTION 4: Challan & Bill Details */}
+        <Card className="border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50/50 border-b border-gray-100 pb-3 pt-4 px-4 md:px-6">
+            <CardTitle className="text-base md:text-lg text-slate-800 font-semibold tracking-tight">4. Challan & Bill Details</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Invoice Number *</Label>
+                <Input className="h-11 uppercase text-base" {...register("invoiceNumber")} />
+                {errors.invoiceNumber && <p className="text-red-500 text-xs">{errors.invoiceNumber.message}</p>}
+              </div>
+              <PhotoUpload id="challan" label="Challan Photo" state={challanPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('challan')} onCameraClick={() => setCameraOpenFor('challan')} />
+            </div>
             <PhotoUpload id="bill" label="Bill Photo" state={billPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('bill')} onCameraClick={() => setCameraOpenFor('bill')} />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <input
+                  type="checkbox"
+                  id="gstApplicable"
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded border-gray-300"
+                  {...register("gstApplicable")}
+                />
+                <Label htmlFor="gstApplicable" className="cursor-pointer font-medium">GST Applicable?</Label>
+              </div>
+
+              {watchGstApplicable && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <Label>GST Percentage (%) *</Label>
+                    <Input type="number" step="any" className="h-12 text-base" {...register("gstPercentage", { valueAsNumber: true })} />
+                    {errors.gstPercentage && <p className="text-red-500 text-xs">{errors.gstPercentage.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>GST Amount (₹)</Label>
+                    <Input type="number" step="any" className="h-12 bg-gray-50 text-base" readOnly {...register("gstAmount", { valueAsNumber: true })} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Final Bill Amount (₹) *</Label>
-                <Input type="number" step="any" className="h-10 bg-gray-50 font-medium text-lg" readOnly {...register("finalBillAmount", { valueAsNumber: true })} />
+                <Input type="number" step="any" className="h-11 bg-gray-50 font-medium text-lg" readOnly {...register("finalBillAmount", { valueAsNumber: true })} />
                 {errors.finalBillAmount && <p className="text-red-500 text-xs">{errors.finalBillAmount.message}</p>}
               </div>
               
@@ -621,16 +718,16 @@ export function InventoryFormClient({
             {watchPaymentStatus === "Paid" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2 md:w-1/2">
                 <Label>Payment Date *</Label>
-                <Input type="date" className="h-10" {...register("paymentDate")} />
+                <Input type="date" className="h-12 text-base" {...register("paymentDate")} />
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* SECTION 5: Remarks */}
-        <Card className="border-none shadow-sm overflow-hidden bg-white/50">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
-            <CardTitle className="text-lg text-gray-800">5. Remarks</CardTitle>
+        <Card className="border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50/50 border-b border-gray-100 pb-3 pt-4 px-4 md:px-6">
+            <CardTitle className="text-base md:text-lg text-slate-800 font-semibold tracking-tight">5. Remarks</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-2">
@@ -645,7 +742,7 @@ export function InventoryFormClient({
               Reset
             </Button>
           )}
-          <Button type="submit" disabled={isSubmitting} className="w-40 h-12 text-base shadow-md bg-blue-600 hover:bg-blue-700 rounded-xl">
+          <Button type="submit" disabled={isSubmitting} className="w-40 h-12 text-base shadow-md bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl active:scale-[0.98] transition-all">
             {isSubmitting ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : null}
             {initialData ? "Update Entry" : "Save Entry"}
           </Button>

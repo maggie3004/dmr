@@ -24,12 +24,10 @@ export default async function SuppliersPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Manage Suppliers</h1>
-          <p className="text-gray-500">Add, edit, and manage supplier master data.</p>
-        </div>
+    <div className="space-y-6 md:space-y-8">
+      <div className="text-center mb-6 md:mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Manage Suppliers</h1>
+        <p className="text-gray-500 mt-1">Add, edit, and manage material suppliers.</p>
       </div>
       
       <SuppliersClient suppliers={suppliers || []} />
