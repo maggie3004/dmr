@@ -116,7 +116,8 @@ export function InventoryFormClient({
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    // @ts-expect-error type incompatibility with hookform/resolvers
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       dateOfArrival: initialData?.arrival_date || new Date().toISOString().split('T')[0],
       supplierId: initialData?.supplier_id || "",
