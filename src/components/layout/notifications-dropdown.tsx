@@ -70,7 +70,7 @@ export function NotificationsDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+        <div className="absolute -right-16 sm:right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
           <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
             <h3 className="font-semibold text-gray-800 text-sm">Notifications</h3>
             {notifications.length > 0 && (
