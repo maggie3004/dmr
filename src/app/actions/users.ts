@@ -40,14 +40,12 @@ export async function addUser(formData: FormData) {
       if (error.code === '23505') {
         return { success: false, error: "User with this email already exists" };
       }
-      console.error("Users Action Error:", error);
       return { success: false, error: "An unexpected error occurred. Please try again." };
     }
 
     revalidatePath("/users");
     return { success: true };
   } catch (error: any) {
-    console.error("Users Action Error:", error);
     return { success: false, error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -72,7 +70,67 @@ export async function deleteUser(userId: string) {
     revalidatePath("/users");
     return { success: true };
   } catch (error: any) {
-    console.error("Users Action Error:", error);
+    return { success: false, error: "An unexpected error occurred. Please try again." };
+  }
+}
+
+export async function updateUser(userId: string, formData: FormData) {
+  try {
+    const session = await auth();
+    if (session?.user?.role !== "Admin") {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const name = formData.get("name") as string;
+    const role = formData.get("role") as string;
+    const status = formData.get("status") as string;
+
+    if (!name || !role || !status) {
+      return { success: false, error: "Missing required fields" };
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ name, role, status })
+      .eq("id", userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: "An unexpected error occurred. Please try again." };
+  }
+}
+
+export async function resetPassword(userId: string, formData: FormData) {
+  try {
+    const session = await auth();
+    if (session?.user?.role !== "Admin") {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const password = formData.get("password") as string;
+
+    if (!password) {
+      return { success: false, error: "Password is required" };
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const { error } = await supabase
+      .from("users")
+      .update({ password: hashedPassword })
+      .eq("id", userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
     return { success: false, error: "An unexpected error occurred. Please try again." };
   }
 }

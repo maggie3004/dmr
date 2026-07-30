@@ -27,7 +27,11 @@ export default function LoginPage() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password");
+        if (res.error === "inactive_account" || res.error.includes("inactive_account") || res.code === "inactive_account") {
+          setError("Your account is inactive. Please contact the administrator.");
+        } else {
+          setError("Invalid email or password");
+        }
         setLoading(false);
       } else {
         router.push("/");

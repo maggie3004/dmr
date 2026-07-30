@@ -1,8 +1,12 @@
-import NextAuth from "next-auth"
+import NextAuth, { CredentialsSignin } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { createClient } from "@supabase/supabase-js"
+
+class InactiveUserError extends CredentialsSignin {
+  code = "inactive_account";
+}
 
 // We create a server-side Supabase client to verify credentials
 const supabase = createClient(
@@ -34,7 +38,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (error || !user) return null;
           
-          if (user.status !== "Active") return null;
+          if (user.status !== "Active") {
+            throw new InactiveUserError();
+          }
 
           const passwordsMatch = await bcrypt.compare(password, user.password);
 
