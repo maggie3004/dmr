@@ -23,7 +23,8 @@ export default async function EntriesPage() {
     .select(`
       *,
       suppliers ( supplier_name ),
-      materials ( material_name )
+      materials ( material_name ),
+      sites ( site_name )
     `)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });

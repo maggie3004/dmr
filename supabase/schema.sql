@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS materials (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create sites table
+CREATE TABLE IF NOT EXISTS sites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    site_name VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create dmr_entries table
 CREATE TABLE IF NOT EXISTS dmr_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -65,6 +78,7 @@ CREATE TABLE IF NOT EXISTS dmr_entries (
     arrival_date DATE NOT NULL,
     supplier_id UUID REFERENCES suppliers(id) ON DELETE RESTRICT,
     material_id UUID REFERENCES materials(id) ON DELETE RESTRICT,
+    site_id UUID REFERENCES sites(id) ON DELETE RESTRICT,
     other_material VARCHAR(255),
     quantity NUMERIC NOT NULL,
     unit VARCHAR(50) NOT NULL,
@@ -76,6 +90,7 @@ CREATE TABLE IF NOT EXISTS dmr_entries (
     bill_image TEXT,
     rate_per_unit NUMERIC,
     gst_applicable BOOLEAN DEFAULT FALSE,
+    gst_type VARCHAR(50),
     gst_percentage NUMERIC,
     gst_amount NUMERIC,
     final_bill_amount NUMERIC,
@@ -94,6 +109,7 @@ CREATE TABLE IF NOT EXISTS dmr_entries (
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dmr_entries ENABLE ROW LEVEL SECURITY;
 
 -- Insert default Admin user (password = 'admin123' hashed with bcrypt)

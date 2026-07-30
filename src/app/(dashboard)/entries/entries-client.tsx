@@ -51,6 +51,7 @@ export function EntriesClient({
       e.dmr_number?.toLowerCase().includes(s) ||
       e.suppliers?.supplier_name?.toLowerCase().includes(s) ||
       (e.materials?.material_name || e.material_name)?.toLowerCase().includes(s) ||
+      e.sites?.site_name?.toLowerCase().includes(s) ||
       e.vehicle_number?.toLowerCase().includes(s) ||
       e.invoice_number?.toLowerCase().includes(s)
     );
@@ -92,6 +93,7 @@ export function EntriesClient({
       "Arrival Date": "2026-07-29",
       "Supplier Name": "ABC Supplier",
       "Material Name": "Sand",
+      "Site Name": "Main Site",
       "Quantity": "100",
       "Unit": "Ton",
       "Vehicle Number": "MH-12-1234",
@@ -138,136 +140,7 @@ export function EntriesClient({
     }
   };
 
-  const printInvoice = () => {
-    if (!selectedEntry) return;
-    
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Please allow popups to print.");
-      return;
-    }
-    
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Invoice - ${selectedEntry.dmr_number}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
-            .title { font-size: 28px; font-weight: bold; color: #0f172a; margin: 0; }
-            .dmr-num { font-size: 16px; color: #64748b; margin-top: 4px; }
-            .meta { text-align: right; }
-            .meta-item { margin-bottom: 4px; font-size: 14px; }
-            
-            .section { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .box { background: #f8fafc; padding: 16px; border-radius: 8px; width: 45%; border: 1px solid #e2e8f0; }
-            .box h3 { margin-top: 0; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-            .box p { margin: 4px 0; font-size: 15px; font-weight: 500; }
-            
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-            th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 14px; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; }
-            td { font-size: 15px; }
-            .text-right { text-align: right; }
-            
-            .totals { width: 50%; float: right; }
-            .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; }
-            .total-row.final { font-size: 18px; font-weight: bold; border-top: 2px solid #e2e8f0; margin-top: 8px; padding-top: 12px; }
-            
-            .status { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 20px; border: 1px solid transparent; }
-            .status.paid { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-            .status.unpaid { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-            
-            .footer { clear: both; margin-top: 60px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #64748b; text-align: center; }
-            
-            @media print {
-              body { padding: 0; }
-              button { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1 class="title">INVOICE / RECEIPT</h1>
-              <div class="dmr-num">${selectedEntry.dmr_number}</div>
-            </div>
-            <div class="meta">
-              <div class="meta-item"><strong>Date:</strong> ${new Date(selectedEntry.arrival_date).toLocaleDateString()}</div>
-              <div class="meta-item"><strong>Vehicle:</strong> ${selectedEntry.vehicle_number || "N/A"}</div>
-              <div class="meta-item"><strong>Inv No:</strong> ${selectedEntry.invoice_number || "N/A"}</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="box">
-              <h3>Supplier Details</h3>
-              <p>${selectedEntry.suppliers?.supplier_name || "-"}</p>
-            </div>
-            <div class="box">
-              <h3>Material</h3>
-              <p>${selectedEntry.materials?.material_name || selectedEntry.material_name || "-"}</p>
-            </div>
-          </div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th class="text-right">Qty</th>
-                <th class="text-right">Rate</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${selectedEntry.materials?.material_name || selectedEntry.material_name || "Material"}</td>
-                <td class="text-right">${selectedEntry.quantity} ${selectedEntry.unit}</td>
-                <td class="text-right">₹${selectedEntry.rate_per_unit || 0}</td>
-                <td class="text-right">₹${selectedEntry.quantity * (selectedEntry.rate_per_unit || 0)}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div class="totals">
-            <div class="total-row">
-              <span>Subtotal</span>
-              <span>₹${selectedEntry.quantity * (selectedEntry.rate_per_unit || 0)}</span>
-            </div>
-            ${selectedEntry.gst_applicable ? `
-            <div class="total-row">
-              <span>GST (${selectedEntry.gst_percentage}%)</span>
-              <span>₹${selectedEntry.gst_amount}</span>
-            </div>
-            ` : ''}
-            <div class="total-row final">
-              <span>Total Amount</span>
-              <span>₹${selectedEntry.final_bill_amount || 0}</span>
-            </div>
-            
-            <div class="text-right">
-              <span class="status ${selectedEntry.payment_status === 'Paid' ? 'paid' : 'unpaid'}">
-                ${selectedEntry.payment_status}
-              </span>
-            </div>
-          </div>
-          
-          <div class="footer">
-            ${selectedEntry.remarks ? `<strong>Remarks:</strong> ${selectedEntry.remarks}<br><br>` : ''}
-            Generated by DMR Portal
-          </div>
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
-  };
+
 
   return (
     <div className="space-y-6">
@@ -312,6 +185,7 @@ export function EntriesClient({
               <TableHead>Arrival Date</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Material</TableHead>
+              <TableHead>Site</TableHead>
               <TableHead>Qty/Unit</TableHead>
               <TableHead>Vehicle / Invoice</TableHead>
               <TableHead>Bill Amount</TableHead>
@@ -323,7 +197,7 @@ export function EntriesClient({
           <TableBody>
             {filteredEntries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center h-24 text-gray-500">
+                <TableCell colSpan={11} className="text-center h-24 text-gray-500">
                   No entries found.
                 </TableCell>
               </TableRow>
@@ -339,6 +213,7 @@ export function EntriesClient({
                   <TableCell suppressHydrationWarning>{new Date(entry.arrival_date).toLocaleDateString()}</TableCell>
                   <TableCell>{entry.suppliers?.supplier_name || "-"}</TableCell>
                   <TableCell>{entry.materials?.material_name || "-"}</TableCell>
+                  <TableCell>{entry.sites?.site_name || "-"}</TableCell>
                   <TableCell>{entry.quantity} {entry.unit}</TableCell>
                   <TableCell>
                     <div className="text-sm">{entry.vehicle_number || '-'}</div>
@@ -475,6 +350,10 @@ export function EntriesClient({
                   <div className="font-medium truncate pr-2">{entry.materials?.material_name || "-"}</div>
                 </div>
                 <div>
+                  <div className="text-gray-500 text-xs">Site</div>
+                  <div className="font-medium truncate pr-2">{entry.sites?.site_name || "-"}</div>
+                </div>
+                <div>
                   <div className="text-gray-500 text-xs">Qty</div>
                   <div className="font-medium">{entry.quantity} {entry.unit}</div>
                 </div>
@@ -552,9 +431,6 @@ export function EntriesClient({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader className="flex flex-row items-center justify-between pr-8">
             <DialogTitle>DMR Details - {selectedEntry?.dmr_number}</DialogTitle>
-            <Button size="sm" variant="outline" onClick={printInvoice} className="flex items-center gap-2 h-8 text-sm">
-              <Printer className="w-3.5 h-3.5" /> Print Invoice
-            </Button>
           </DialogHeader>
           {selectedEntry && (
             <div className="grid grid-cols-2 gap-4 py-4 text-sm">
@@ -569,6 +445,10 @@ export function EntriesClient({
               <div>
                 <p className="text-gray-500 mb-1">Material</p>
                 <p className="font-medium">{selectedEntry.materials?.material_name || selectedEntry.material_name || "-"}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 mb-1">Site</p>
+                <p className="font-medium">{selectedEntry.sites?.site_name || "-"}</p>
               </div>
               <div>
                 <p className="text-gray-500 mb-1">Quantity</p>

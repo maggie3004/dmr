@@ -10,6 +10,7 @@ import Tesseract from 'tesseract.js';
 import { submitInventoryForm, updateDmrEntry } from "@/app/actions/inventory";
 import { addSupplier } from "@/app/actions/suppliers";
 import { addMaterial } from "@/app/actions/materials";
+import { addSite } from "@/app/actions/sites";
 
 import { CameraCapture } from "@/components/ui/camera-capture";
 
@@ -41,6 +42,7 @@ import {
 const formSchema = z.object({
   dateOfArrival: z.string().min(1, "Date is required"),
   supplierId: z.string().min(1, "Supplier is required"),
+  siteId: z.string().min(1, "Site is required"),
   materialId: z.string().min(1, "Material is required"),
   quantity: z.number({ message: "Quantity is required" }).min(0.01, "Quantity must be greater than 0"),
   unit: z.string().min(1, "Unit is required"),
@@ -53,6 +55,7 @@ const formSchema = z.object({
   gstApplicable: z.boolean().default(false),
   gstPercentage: z.number().optional(),
   gstAmount: z.number().optional(),
+  gstType: z.enum(["Inclusive", "Exclusive"]).optional(),
   remarks: z.string().optional(),
 });
 
@@ -61,16 +64,19 @@ type FormValues = z.infer<typeof formSchema>;
 export function InventoryFormClient({ 
   suppliers: initialSuppliers,
   materials: initialMaterials,
+  sites: initialSites,
   initialData,
   onSuccess
 }: { 
   suppliers: any[];
   materials: any[];
+  sites: any[];
   initialData?: any;
   onSuccess?: () => void;
 }) {
   const [suppliers, setSuppliers] = useState(initialSuppliers);
   const [materials, setMaterials] = useState(initialMaterials);
+  const [sites, setSites] = useState(initialSites || []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -88,15 +94,21 @@ export function InventoryFormClient({
 
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
+  const [siteOpen, setSiteOpen] = useState(false);
   
   const [cameraOpenFor, setCameraOpenFor] = useState<'material' | 'vehicle' | 'challan' | 'bill' | null>(null);
   
   const [supplierSearch, setSupplierSearch] = useState("");
   const [materialSearch, setMaterialSearch] = useState("");
+  const [siteSearch, setSiteSearch] = useState("");
 
   const [addSupplierOpen, setAddSupplierOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+
+  const [addSiteOpen, setAddSiteOpen] = useState(false);
+  const [newSiteName, setNewSiteName] = useState("");
+  const [isAddingSite, setIsAddingSite] = useState(false);
 
   const [isOcrLoading, setIsOcrLoading] = useState(false);
 
@@ -120,6 +132,7 @@ export function InventoryFormClient({
     defaultValues: {
       dateOfArrival: initialData?.arrival_date || new Date().toISOString().split('T')[0],
       supplierId: initialData?.supplier_id || "",
+      siteId: initialData?.site_id || "",
       materialId: initialData?.material_id || "",
       quantity: initialData?.quantity || undefined,
       unit: initialData?.unit || "",
@@ -132,6 +145,7 @@ export function InventoryFormClient({
       gstApplicable: initialData?.gst_applicable || false,
       gstPercentage: initialData?.gst_percentage || undefined,
       gstAmount: initialData?.gst_amount || undefined,
+      gstType: initialData?.gst_type || "Exclusive",
       remarks: initialData?.remarks || "",
     },
   });
@@ -142,12 +156,13 @@ export function InventoryFormClient({
   const watchMaterialId = watch("materialId");
   const watchGstApplicable = watch("gstApplicable");
   const watchGstPercentage = watch("gstPercentage");
+  const watchGstType = watch("gstType");
 
   // Auto calculate final bill amount
   useEffect(() => {
     if (watchQuantity && watchRate) {
       let calculated = watchQuantity * watchRate;
-      if (watchGstApplicable && watchGstPercentage) {
+      if (watchGstApplicable && watchGstType === "Exclusive" && watchGstPercentage) {
         const gstAmount = (calculated * watchGstPercentage) / 100;
         setValue("gstAmount", gstAmount);
         calculated += gstAmount;
@@ -156,7 +171,7 @@ export function InventoryFormClient({
       }
       setValue("finalBillAmount", calculated);
     }
-  }, [watchQuantity, watchRate, watchGstApplicable, watchGstPercentage, setValue]);
+  }, [watchQuantity, watchRate, watchGstApplicable, watchGstPercentage, watchGstType, setValue]);
 
   // Handle auto-filling unit and rate when material changes
   useEffect(() => {
@@ -301,6 +316,22 @@ export function InventoryFormClient({
     }
   };
 
+  const handleAddSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddingSite(true);
+    const res = await addSite({ site_name: newSiteName });
+    setIsAddingSite(false);
+    if (res.success && res.site) {
+      setSites([...sites, res.site]);
+      setValue("siteId", res.site.id);
+      setAddSiteOpen(false);
+      setSiteOpen(false);
+      setNewSiteName("");
+    } else {
+      alert(res.error);
+    }
+  };
+
   const handleAddMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddingMaterial(true);
@@ -433,17 +464,18 @@ export function InventoryFormClient({
         </div>
       )}
 
-      {success && !initialData && (
-        <div className="mb-8 p-4 bg-green-50 text-green-800 rounded-lg border border-green-200 flex items-center gap-3">
-          <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-            <Check className="h-5 w-5 text-green-600" />
+      <Dialog open={success && !initialData} onOpenChange={setSuccess}>
+        <DialogContent className="sm:max-w-md text-center flex flex-col items-center justify-center py-8">
+          <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <Check className="h-8 w-8 text-green-600" />
           </div>
-          <div>
-            <p className="font-medium">DMR Entry saved successfully!</p>
-            {dmrNumber && <p className="text-sm text-green-600 mt-1">DMR Number: {dmrNumber}</p>}
-          </div>
-        </div>
-      )}
+          <DialogTitle className="text-2xl font-semibold mb-2 text-center">DMR Entry saved successfully!</DialogTitle>
+          {dmrNumber && <p className="text-gray-500 mb-6 text-center">DMR Number: <span className="font-semibold text-green-600">{dmrNumber}</span></p>}
+          <Button onClick={() => setSuccess(false)} className="w-full sm:w-auto px-8 mx-auto">
+            Done
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6 md:space-y-8">
         
@@ -529,6 +561,71 @@ export function InventoryFormClient({
                   )}
                 />
                 {errors.supplierId && <p className="text-red-500 text-xs">{errors.supplierId.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Site *</Label>
+                <Controller
+                  name="siteId"
+                  control={control}
+                  render={({ field }) => (
+                    <Popover open={siteOpen} onOpenChange={setSiteOpen}>
+                      <PopoverTrigger
+                        role="combobox"
+                        aria-expanded={siteOpen}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm md:text-base ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-white hover:bg-slate-50 h-10 md:h-12 px-3 py-2 w-full justify-between font-normal shadow-sm"
+                      >
+                        {field.value
+                          ? sites.find((s) => s.id === field.value)?.site_name
+                          : "Select a site..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 flex flex-col max-h-[300px]">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search site..." 
+                            value={siteSearch} 
+                            onValueChange={setSiteSearch}
+                            onInput={(e) => setSiteSearch(e.currentTarget.value)} 
+                          />
+                          <CommandList>
+                            <CommandEmpty className="p-2">
+                              <Button 
+                                variant="ghost" 
+                                className="w-full justify-start text-blue-600 bg-blue-50/50"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setNewSiteName(siteSearch);
+                                  setAddSiteOpen(true);
+                                }}
+                              >
+                                <Plus className="mr-2 h-4 w-4" /> Create "{siteSearch}"
+                              </Button>
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {sites.map((s) => (
+                                <CommandItem
+                                  key={s.id}
+                                  value={s.site_name}
+                                  onSelect={() => {
+                                    field.onChange(s.id);
+                                    setSiteOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${field.value === s.id ? "opacity-100" : "opacity-0"}`}
+                                  />
+                                  {s.site_name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                />
+                {errors.siteId && <p className="text-red-500 text-xs">{errors.siteId.message}</p>}
               </div>
             </div>
           </CardContent>
@@ -679,16 +776,31 @@ export function InventoryFormClient({
               </div>
 
               {watchGstApplicable && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <Label>GST Percentage (%) *</Label>
-                    <Input type="number" step="any" className="h-12 text-base" {...register("gstPercentage", { valueAsNumber: true })} />
-                    {errors.gstPercentage && <p className="text-red-500 text-xs">{errors.gstPercentage.message}</p>}
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex flex-col sm:flex-row gap-4 p-2 bg-gray-50 rounded-xl border border-gray-200 w-fit">
+                    <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm hover:border-blue-300 transition-colors">
+                      <input type="radio" value="Inclusive" {...register("gstType")} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-sm font-medium">Inclusive</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm hover:border-blue-300 transition-colors">
+                      <input type="radio" value="Exclusive" {...register("gstType")} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-sm font-medium">Exclusive</span>
+                    </label>
                   </div>
-                  <div className="space-y-2">
-                    <Label>GST Amount (₹)</Label>
-                    <Input type="number" step="any" className="h-12 bg-gray-50 text-base" readOnly {...register("gstAmount", { valueAsNumber: true })} />
-                  </div>
+
+                  {watchGstType === "Exclusive" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>GST Percentage (%) *</Label>
+                        <Input type="number" step="any" className="h-12 text-base" {...register("gstPercentage", { valueAsNumber: true })} />
+                        {errors.gstPercentage && <p className="text-red-500 text-xs">{errors.gstPercentage.message}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>GST Amount (₹)</Label>
+                        <Input type="number" step="any" className="h-12 bg-gray-50 text-base" readOnly {...register("gstAmount", { valueAsNumber: true })} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -763,6 +875,26 @@ export function InventoryFormClient({
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isAddingSupplier}>
                 {isAddingSupplier ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Site Dialog (Internal) */}
+      <Dialog open={addSiteOpen} onOpenChange={setAddSiteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Site</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddSite} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Site Name</Label>
+              <Input required value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={isAddingSite}>
+                {isAddingSite ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : "Save"}
               </Button>
             </div>
           </form>

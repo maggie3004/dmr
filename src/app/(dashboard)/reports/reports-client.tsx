@@ -13,146 +13,17 @@ export function ReportsClient({ entries }: { entries: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<any>(null);
 
-  const printInvoice = () => {
-    if (!selectedEntry) return;
-    
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Please allow popups to print.");
-      return;
-    }
-    
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Invoice - ${selectedEntry.dmr_number}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
-            .title { font-size: 28px; font-weight: bold; color: #0f172a; margin: 0; }
-            .dmr-num { font-size: 16px; color: #64748b; margin-top: 4px; }
-            .meta { text-align: right; }
-            .meta-item { margin-bottom: 4px; font-size: 14px; }
-            
-            .section { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .box { background: #f8fafc; padding: 16px; border-radius: 8px; width: 45%; border: 1px solid #e2e8f0; }
-            .box h3 { margin-top: 0; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-            .box p { margin: 4px 0; font-size: 15px; font-weight: 500; }
-            
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-            th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 14px; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; }
-            td { font-size: 15px; }
-            .text-right { text-align: right; }
-            
-            .totals { width: 50%; float: right; }
-            .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; }
-            .total-row.final { font-size: 18px; font-weight: bold; border-top: 2px solid #e2e8f0; margin-top: 8px; padding-top: 12px; }
-            
-            .status { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 20px; border: 1px solid transparent; }
-            .status.paid { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-            .status.unpaid { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-            
-            .footer { clear: both; margin-top: 60px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #64748b; text-align: center; }
-            
-            @media print {
-              body { padding: 0; }
-              button { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1 class="title">INVOICE / RECEIPT</h1>
-              <div class="dmr-num">${selectedEntry.dmr_number}</div>
-            </div>
-            <div class="meta">
-              <div class="meta-item"><strong>Date:</strong> ${new Date(selectedEntry.arrival_date).toLocaleDateString()}</div>
-              <div class="meta-item"><strong>Vehicle:</strong> ${selectedEntry.vehicle_number || "N/A"}</div>
-              <div class="meta-item"><strong>Inv No:</strong> ${selectedEntry.invoice_number || "N/A"}</div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="box">
-              <h3>Supplier Details</h3>
-              <p>${selectedEntry.suppliers?.supplier_name || "-"}</p>
-            </div>
-            <div class="box">
-              <h3>Material</h3>
-              <p>${selectedEntry.materials?.material_name || selectedEntry.material_name || "-"}</p>
-            </div>
-          </div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th class="text-right">Qty</th>
-                <th class="text-right">Rate</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${selectedEntry.materials?.material_name || selectedEntry.material_name || "Material"}</td>
-                <td class="text-right">${selectedEntry.quantity} ${selectedEntry.unit}</td>
-                <td class="text-right">₹${selectedEntry.rate_per_unit || 0}</td>
-                <td class="text-right">₹${selectedEntry.quantity * (selectedEntry.rate_per_unit || 0)}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div class="totals">
-            <div class="total-row">
-              <span>Subtotal</span>
-              <span>₹${selectedEntry.quantity * (selectedEntry.rate_per_unit || 0)}</span>
-            </div>
-            ${selectedEntry.gst_applicable ? `
-            <div class="total-row">
-              <span>GST (${selectedEntry.gst_percentage}%)</span>
-              <span>₹${selectedEntry.gst_amount}</span>
-            </div>
-            ` : ''}
-            <div class="total-row final">
-              <span>Total Amount</span>
-              <span>₹${selectedEntry.final_bill_amount || 0}</span>
-            </div>
-            
-            <div class="text-right">
-              <span class="status ${selectedEntry.payment_status === 'Paid' ? 'paid' : 'unpaid'}">
-                ${selectedEntry.payment_status}
-              </span>
-            </div>
-          </div>
-          
-          <div class="footer">
-            ${selectedEntry.remarks ? `<strong>Remarks:</strong> ${selectedEntry.remarks}<br><br>` : ''}
-            Generated by DMR Portal
-          </div>
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
-  };
-  
   // Filters
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
   const [materialFilter, setMaterialFilter] = useState("");
+  const [siteFilter, setSiteFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
 
   const uniqueSuppliers = Array.from(new Set(entries.map(e => e.suppliers?.supplier_name).filter(Boolean)));
   const uniqueMaterials = Array.from(new Set(entries.map(e => e.materials?.material_name || e.material_name).filter(Boolean)));
+  const uniqueSites = Array.from(new Set(entries.map(e => e.sites?.site_name).filter(Boolean)));
 
   const filteredEntries = entries.filter(e => {
     const matName = e.materials?.material_name || e.material_name || "";
@@ -175,9 +46,10 @@ export function ReportsClient({ entries }: { entries: any[] }) {
     // Filters
     const matchesSupplier = supplierFilter ? e.suppliers?.supplier_name === supplierFilter : true;
     const matchesMaterial = materialFilter ? matName === materialFilter : true;
+    const matchesSite = siteFilter ? e.sites?.site_name === siteFilter : true;
     const matchesPayment = paymentFilter ? e.payment_status === paymentFilter : true;
 
-    return matchesSearch && matchesDate && matchesSupplier && matchesMaterial && matchesPayment;
+    return matchesSearch && matchesDate && matchesSupplier && matchesMaterial && matchesSite && matchesPayment;
   });
 
   const groupedEntries = useMemo(() => {
@@ -188,6 +60,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
       let key = "Unknown";
       if (activeTab === "supplier") key = e.suppliers?.supplier_name || "Unknown";
       else if (activeTab === "material") key = e.materials?.material_name || e.material_name || "Unknown";
+      else if (activeTab === "site") key = e.sites?.site_name || "Unknown";
       else if (activeTab === "date") key = e.arrival_date ? new Date(e.arrival_date).toLocaleDateString() : "Unknown";
       
       if (!groups[key]) groups[key] = [];
@@ -210,6 +83,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
         "Date": new Date(e.arrival_date).toLocaleDateString(),
         "Supplier": e.suppliers?.supplier_name || 'Unknown',
         "Material": e.materials?.material_name || e.material_name || '-',
+        "Site": e.sites?.site_name || '-',
         "Quantity": e.quantity,
         "Unit": e.unit,
         "Rate": e.rate_per_unit,
@@ -247,6 +121,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
             th { background-color: #f8fafc; font-weight: 600; color: #475569; }
             tr:nth-child(even) { background-color: #f8fafc; }
             h2 { font-size: 18px; color: #0f172a; margin-bottom: 16px; font-weight: 600; }
+            .print\\:hidden, .md\\:hidden { display: none !important; }
           </style>
         </head>
         <body>
@@ -269,6 +144,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
     { id: "all", label: "All Records" },
     { id: "supplier", label: "Supplier Wise" },
     { id: "material", label: "Material Wise" },
+    { id: "site", label: "Site Wise" },
     { id: "date", label: "Date Wise" },
   ];
 
@@ -310,6 +186,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                   setDateFilter("");
                   setSupplierFilter("");
                   setMaterialFilter("");
+                  setSiteFilter("");
                   setPaymentFilter("");
                 }}
                 className="text-blue-600 hover:text-blue-800 text-xs font-medium"
@@ -320,7 +197,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
           </div>
           
           <div className={`${isFiltersOpen ? 'block' : 'hidden'} md:block space-y-4`}>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="space-y-1">
               <Label>Search</Label>
               <Input 
@@ -364,6 +241,19 @@ export function ReportsClient({ entries }: { entries: any[] }) {
               </select>
             </div>
             <div className="space-y-1">
+              <Label>Site</Label>
+              <select 
+                className="w-full h-10 px-3 py-2 rounded-md border border-gray-300 bg-white text-sm"
+                value={siteFilter}
+                onChange={(e) => setSiteFilter(e.target.value)}
+              >
+                <option value="">All Sites</option>
+                {uniqueSites.map(s => (
+                  <option key={s as string} value={s as string}>{s as string}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
               <Label>Payment Status</Label>
               <select 
                 className="w-full h-10 px-3 py-2 rounded-md border border-gray-300 bg-white text-sm"
@@ -403,6 +293,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                 <h3 className="text-lg font-semibold text-gray-800 mb-3 bg-gray-50 px-4 py-2 rounded-t-lg border-x border-t border-gray-200">
                   {activeTab === "supplier" && "Supplier: "}
                   {activeTab === "material" && "Material: "}
+                  {activeTab === "site" && "Site: "}
                   {activeTab === "date" && "Date: "}
                   {groupName}
                 </h3>
@@ -416,6 +307,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Supplier</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Material</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Site</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Qty/Unit</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -433,6 +325,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" suppressHydrationWarning>{new Date(entry.arrival_date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.suppliers?.supplier_name || 'Unknown'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.materials?.material_name || entry.material_name || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.sites?.site_name || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.quantity} {entry.unit}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{entry.final_bill_amount?.toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -446,7 +339,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                   ))}
                   {groupData.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="text-center h-24 text-gray-500">
+                      <td colSpan={8} className="text-center h-24 text-gray-500">
                         No reports match the current filters.
                       </td>
                     </tr>
@@ -479,6 +372,9 @@ export function ReportsClient({ entries }: { entries: any[] }) {
                       
                       <div className="text-gray-500">Material</div>
                       <div className="font-medium text-right truncate pl-2">{entry.materials?.material_name || entry.material_name || '-'}</div>
+
+                      <div className="text-gray-500">Site</div>
+                      <div className="font-medium text-right truncate pl-2">{entry.sites?.site_name || '-'}</div>
                       
                       <div className="text-gray-500">Qty</div>
                       <div className="font-medium text-right">{entry.quantity} {entry.unit}</div>
@@ -508,12 +404,6 @@ export function ReportsClient({ entries }: { entries: any[] }) {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader className="flex flex-row items-center justify-between pr-8">
             <DialogTitle>DMR Details - {selectedEntry?.dmr_number}</DialogTitle>
-            <button 
-              onClick={printInvoice}
-              className="flex items-center gap-2 h-8 px-3 text-sm border border-gray-200 rounded-md hover:bg-gray-50 transition"
-            >
-              <Printer className="w-3.5 h-3.5" /> Print Invoice
-            </button>
           </DialogHeader>
           {selectedEntry && (
             <div className="grid grid-cols-2 gap-4 py-4 text-sm">
@@ -528,6 +418,10 @@ export function ReportsClient({ entries }: { entries: any[] }) {
               <div>
                 <p className="text-gray-500 mb-1">Material</p>
                 <p className="font-medium">{selectedEntry.materials?.material_name || selectedEntry.material_name || "-"}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 mb-1">Site</p>
+                <p className="font-medium">{selectedEntry.sites?.site_name || "-"}</p>
               </div>
               <div>
                 <p className="text-gray-500 mb-1">Quantity</p>

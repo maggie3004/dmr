@@ -82,6 +82,7 @@ export async function submitInventoryForm(formData: FormData): Promise<{ success
       arrival_date: formData.get("dateOfArrival"),
       supplier_id: formData.get("supplierId"),
       material_id: formData.get("materialId"),
+      site_id: formData.get("siteId"),
       quantity: parseFloat(formData.get("quantity") as string),
       unit: formData.get("unit"),
       vehicle_number: formData.get("vehicleNumber"),
@@ -92,6 +93,7 @@ export async function submitInventoryForm(formData: FormData): Promise<{ success
       bill_image,
       rate_per_unit: parseFloat(formData.get("ratePerUnit") as string),
       gst_applicable: formData.get("gstApplicable") === "true",
+      gst_type: formData.get("gstType") || null,
       gst_percentage: formData.get("gstPercentage") ? parseFloat(formData.get("gstPercentage") as string) : null,
       gst_amount: formData.get("gstAmount") ? parseFloat(formData.get("gstAmount") as string) : null,
       final_bill_amount: parseFloat(formData.get("finalBillAmount") as string),
@@ -164,12 +166,14 @@ export async function updateDmrEntry(id: string, formData: FormData): Promise<{ 
       arrival_date: formData.get("dateOfArrival"),
       supplier_id: formData.get("supplierId"),
       material_id: formData.get("materialId"),
+      site_id: formData.get("siteId"),
       quantity: parseFloat(formData.get("quantity") as string),
       unit: formData.get("unit"),
       vehicle_number: formData.get("vehicleNumber"),
       invoice_number: formData.get("invoiceNumber"),
       rate_per_unit: parseFloat(formData.get("ratePerUnit") as string),
       gst_applicable: formData.get("gstApplicable") === "true",
+      gst_type: formData.get("gstType") || null,
       gst_percentage: formData.get("gstPercentage") ? parseFloat(formData.get("gstPercentage") as string) : null,
       gst_amount: formData.get("gstAmount") ? parseFloat(formData.get("gstAmount") as string) : null,
       final_bill_amount: parseFloat(formData.get("finalBillAmount") as string),
@@ -243,13 +247,16 @@ export async function bulkUploadInventory(entries: any[]): Promise<{ success: bo
     // Process all entries to find unique suppliers and materials
     const uniqueSuppliers = Array.from(new Set(entries.map(e => e["Supplier Name"]).filter(Boolean))) as string[];
     const uniqueMaterials = Array.from(new Set(entries.map(e => e["Material Name"]).filter(Boolean))) as string[];
+    const uniqueSites = Array.from(new Set(entries.map(e => e["Site Name"]).filter(Boolean))) as string[];
 
-    // Fetch existing suppliers and materials
+    // Fetch existing suppliers, materials, and sites
     const { data: existingSuppliers } = await supabase.from('suppliers').select('id, supplier_name');
     const { data: existingMaterials } = await supabase.from('materials').select('id, material_name');
+    const { data: existingSites } = await supabase.from('sites').select('id, site_name');
 
     const supplierMap = new Map((existingSuppliers || []).map(s => [s.supplier_name.toLowerCase().trim(), s.id]));
     const materialMap = new Map((existingMaterials || []).map(m => [m.material_name.toLowerCase().trim(), m.id]));
+    const siteMap = new Map((existingSites || []).map(s => [s.site_name.toLowerCase().trim(), s.id]));
 
     // Helper to get or create supplier
     const getOrCreateSupplier = async (name: string) => {
@@ -279,6 +286,21 @@ export async function bulkUploadInventory(entries: any[]): Promise<{ success: bo
       return data.id;
     };
 
+    // Helper to get or create site
+    const getOrCreateSite = async (name: string) => {
+      const key = name.toLowerCase().trim();
+      if (siteMap.has(key)) return siteMap.get(key);
+
+      const { data, error } = await supabase.from('sites').insert({ 
+        site_name: name,
+        created_by: session.user.id 
+      }).select('id').single();
+      
+      if (error) throw new Error(`Failed to create site ${name}`);
+      siteMap.set(key, data.id);
+      return data.id;
+    };
+
     const currentYear = new Date().getFullYear();
     const payload = [];
 
@@ -288,6 +310,7 @@ export async function bulkUploadInventory(entries: any[]): Promise<{ success: bo
 
       const supplier_id = await getOrCreateSupplier(row["Supplier Name"]);
       const material_id = await getOrCreateMaterial(row["Material Name"], row["Unit"], parseFloat(row["Rate Per Unit"] || "0"));
+      const site_id = row["Site Name"] ? await getOrCreateSite(row["Site Name"]) : null;
 
       // Get next DMR number (generate a random-ish one for bulk to avoid collision or query for each)
       // For bulk, a timestamp suffix is safer
@@ -299,6 +322,7 @@ export async function bulkUploadInventory(entries: any[]): Promise<{ success: bo
         arrival_date: row["Arrival Date"],
         supplier_id,
         material_id,
+        site_id,
         quantity: parseFloat(row["Quantity"]),
         unit: row["Unit"] || "Nos",
         vehicle_number: row["Vehicle Number"] || null,

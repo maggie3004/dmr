@@ -19,9 +19,12 @@ export default async function InventoryFormPage() {
   const { data: materialsData } = await supabase.from('materials').select('id, material_name, default_unit, default_rate').is('deleted_at', null).order('material_name');
   const materials = materialsData || [];
 
+  const { data: sitesData } = await supabase.from('sites').select('id, site_name').is('deleted_at', null).order('site_name');
+  const sites = sitesData || [];
+
   return (
     <div className="max-w-4xl mx-auto">
-      <InventoryFormClient suppliers={suppliers} materials={materials} />
+      <InventoryFormClient suppliers={suppliers} materials={materials} sites={sites} />
     </div>
   );
 }

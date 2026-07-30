@@ -19,7 +19,7 @@ export default async function ReportsPage() {
 
   const { data: entries } = await supabase
     .from('dmr_entries')
-    .select('*, suppliers(supplier_name), materials(material_name)')
+    .select('*, suppliers(supplier_name), materials(material_name), sites(site_name)')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
