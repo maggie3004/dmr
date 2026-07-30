@@ -40,6 +40,9 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   const { data: materialsData } = await supabase.from('materials').select('id, material_name, default_unit, default_rate').is('deleted_at', null).order('material_name');
   const materials = materialsData || [];
 
+  const { data: sitesData } = await supabase.from('sites').select('id, site_name').is('deleted_at', null).order('site_name');
+  const sites = sitesData || [];
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
       <div className="flex items-center justify-center relative mb-6 md:mb-8">
@@ -55,6 +58,7 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
       <InventoryFormClient 
         suppliers={suppliers} 
         materials={materials} 
+        sites={sites}
         initialData={entry} 
       />
     </div>
