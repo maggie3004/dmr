@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function InventoryFormPage() {
   const session = await auth();
-  
+
   const { data: suppliersData } = await supabase.from('suppliers').select('id, supplier_name').is('deleted_at', null);
   const suppliers = suppliersData || [];
 

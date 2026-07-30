@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function EditEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  
+
   if (session?.user?.role !== "Admin") {
     redirect("/");
   }
@@ -54,12 +54,12 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
           <p className="text-gray-500">Update details for this Daily Material Report.</p>
         </div>
       </div>
-      
-      <InventoryFormClient 
-        suppliers={suppliers} 
-        materials={materials} 
+
+      <InventoryFormClient
+        suppliers={suppliers}
+        materials={materials}
         sites={sites}
-        initialData={entry} 
+        initialData={entry}
       />
     </div>
   );
