@@ -555,6 +555,20 @@ export function InventoryFormClient({
                               ))}
                             </CommandGroup>
                           </CommandList>
+                          <div className="p-2 border-t border-gray-100 bg-gray-50/50">
+                            <Button 
+                              variant="ghost" 
+                              className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setNewSupplierName(supplierSearch);
+                                setAddSupplierOpen(true);
+                                setSupplierOpen(false);
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" /> Add New Supplier
+                            </Button>
+                          </div>
                         </Command>
                       </PopoverContent>
                     </Popover>
@@ -620,6 +634,20 @@ export function InventoryFormClient({
                               ))}
                             </CommandGroup>
                           </CommandList>
+                          <div className="p-2 border-t border-gray-100 bg-gray-50/50">
+                            <Button 
+                              variant="ghost" 
+                              className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setNewSiteName(siteSearch);
+                                setAddSiteOpen(true);
+                                setSiteOpen(false);
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" /> Add New Site
+                            </Button>
+                          </div>
                         </Command>
                       </PopoverContent>
                     </Popover>
@@ -696,6 +724,20 @@ export function InventoryFormClient({
                             ))}
                           </CommandGroup>
                         </CommandList>
+                        <div className="p-2 border-t border-gray-100 bg-gray-50/50">
+                          <Button 
+                            variant="ghost" 
+                            className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setNewMaterialName(materialSearch);
+                              setAddMaterialOpen(true);
+                              setMaterialOpen(false);
+                            }}
+                          >
+                            <Plus className="mr-2 h-4 w-4" /> Add New Material
+                          </Button>
+                        </div>
                       </Command>
                     </PopoverContent>
                   </Popover>
@@ -850,7 +892,17 @@ export function InventoryFormClient({
 
         <div className="flex items-center justify-end gap-4 sticky bottom-4 p-4 bg-white/80 backdrop-blur-xl border border-gray-200/50 shadow-lg z-10 rounded-2xl">
           {!initialData && (
-            <Button type="button" variant="ghost" onClick={() => reset()} className="w-24">
+            <Button type="button" variant="ghost" onClick={() => {
+              reset();
+              setMaterialPhoto(null);
+              setVehiclePhoto(null);
+              setChallanPhoto(null);
+              setBillPhoto(null);
+              setMaterialPreview(null);
+              setVehiclePreview(null);
+              setChallanPreview(null);
+              setBillPreview(null);
+            }} className="w-24">
               Reset
             </Button>
           )}
