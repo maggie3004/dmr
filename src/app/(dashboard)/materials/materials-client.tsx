@@ -121,10 +121,9 @@ export function MaterialsClient({ materials }: { materials: any[] }) {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="material_name">Material Name *</Label>
+                <Label htmlFor="material_name">Material Name</Label>
                 <Input 
                   id="material_name"
-                  required
                   value={formData.material_name}
                   onChange={(e) => setFormData({...formData, material_name: e.target.value})}
                 />

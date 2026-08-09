@@ -40,21 +40,21 @@ import {
 } from "@/components/ui/dialog";
 
 const formSchema = z.object({
-  dateOfArrival: z.string().min(1, "Date is required"),
-  supplierId: z.string().min(1, "Supplier is required"),
-  siteId: z.string().min(1, "Site is required"),
-  materialId: z.string().min(1, "Material is required"),
-  quantity: z.number({ message: "Quantity is required" }).min(0.01, "Quantity must be greater than 0"),
-  unit: z.string().min(1, "Unit is required"),
-  vehicleNumber: z.string().min(1, "Vehicle number is required"),
-  invoiceNumber: z.string().min(1, "Invoice number is required"),
-  ratePerUnit: z.number({ message: "Rate is required" }).min(0, "Rate must be positive"),
-  finalBillAmount: z.number({ message: "Bill amount is required" }).min(0, "Bill amount must be positive"),
-  paymentStatus: z.enum(["Paid", "Not Paid"]),
+  dateOfArrival: z.string().optional(),
+  supplierId: z.string().optional(),
+  siteId: z.string().optional(),
+  materialId: z.string().optional(),
+  quantity: z.preprocess((val) => Number.isNaN(val) ? undefined : val, z.number().optional()),
+  unit: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  ratePerUnit: z.preprocess((val) => Number.isNaN(val) ? undefined : val, z.number().optional()),
+  finalBillAmount: z.preprocess((val) => Number.isNaN(val) ? undefined : val, z.number().optional()),
+  paymentStatus: z.enum(["Paid", "Not Paid"]).optional(),
   paymentDate: z.string().optional(),
   gstApplicable: z.boolean().default(false),
-  gstPercentage: z.number().optional(),
-  gstAmount: z.number().optional(),
+  gstPercentage: z.preprocess((val) => Number.isNaN(val) ? undefined : val, z.number().optional()),
+  gstAmount: z.preprocess((val) => Number.isNaN(val) ? undefined : val, z.number().optional()),
   gstType: z.enum(["Inclusive", "Exclusive"]).optional(),
   remarks: z.string().optional(),
 });
@@ -452,7 +452,7 @@ export function InventoryFormClient({
   );
 
   const onError = () => {
-    alert("Please fill in all required fields marked with * before saving.");
+    alert("Please fill in all required fields before saving.");
   };
 
   return (
@@ -493,13 +493,13 @@ export function InventoryFormClient({
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Arrival Date *</Label>
+                <Label>Arrival Date</Label>
                 <Input type="date" className="h-10 md:h-12 text-sm md:text-base bg-white border-gray-200 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all shadow-sm" {...register("dateOfArrival")} />
                 {errors.dateOfArrival && <p className="text-red-500 text-xs">{errors.dateOfArrival.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label>Supplier *</Label>
+                <Label>Supplier</Label>
                 <Controller
                   name="supplierId"
                   control={control}
@@ -578,7 +578,7 @@ export function InventoryFormClient({
               </div>
 
               <div className="space-y-2">
-                <Label>Site *</Label>
+                <Label>Site</Label>
                 <Controller
                   name="siteId"
                   control={control}
@@ -668,7 +668,7 @@ export function InventoryFormClient({
             <PhotoUpload id="material" label="Material Photo" state={materialPreview} setter={handleImageChange} onRemove={() => handleRemoveImage('material')} onCameraClick={() => setCameraOpenFor('material')} />
             
             <div className="space-y-2 mt-4">
-              <Label>Material *</Label>
+              <Label>Material</Label>
               <Controller
                 name="materialId"
                 control={control}
@@ -748,17 +748,17 @@ export function InventoryFormClient({
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Quantity *</Label>
+                <Label>Quantity</Label>
                 <Input type="number" step="any" className="h-12 text-base" {...register("quantity", { valueAsNumber: true })} />
                 {errors.quantity && <p className="text-red-500 text-xs">{errors.quantity.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Unit *</Label>
+                <Label>Unit</Label>
                 <Input className="h-12 bg-gray-50 text-base" {...register("unit")} />
                 {errors.unit && <p className="text-red-500 text-xs">{errors.unit.message}</p>}
               </div>
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <Label>Rate Per Unit (₹) *</Label>
+                <Label>Rate Per Unit (₹)</Label>
                 <Input type="number" step="any" className="h-12 text-base" {...register("ratePerUnit", { valueAsNumber: true })} />
                 {errors.ratePerUnit && <p className="text-red-500 text-xs">{errors.ratePerUnit.message}</p>}
               </div>
@@ -775,7 +775,7 @@ export function InventoryFormClient({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Vehicle Number *</Label>
+                  <Label>Vehicle Number</Label>
                   {isOcrLoading && (
                     <span className="text-xs text-blue-600 flex items-center gap-1 font-medium animate-pulse">
                       <ScanLine className="w-3 h-3" /> Scanning...
@@ -798,7 +798,7 @@ export function InventoryFormClient({
           <CardContent className="p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Invoice Number *</Label>
+                <Label>Invoice Number</Label>
                 <Input className="h-11 uppercase text-base" {...register("invoiceNumber")} />
                 {errors.invoiceNumber && <p className="text-red-500 text-xs">{errors.invoiceNumber.message}</p>}
               </div>
@@ -833,7 +833,7 @@ export function InventoryFormClient({
                   {watchGstType === "Exclusive" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>GST Percentage (%) *</Label>
+                        <Label>GST Percentage (%)</Label>
                         <Input type="number" step="any" className="h-12 text-base" {...register("gstPercentage", { valueAsNumber: true })} />
                         {errors.gstPercentage && <p className="text-red-500 text-xs">{errors.gstPercentage.message}</p>}
                       </div>
@@ -849,13 +849,13 @@ export function InventoryFormClient({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Final Bill Amount (₹) *</Label>
+                <Label>Final Bill Amount (₹)</Label>
                 <Input type="number" step="any" className="h-11 bg-gray-50 font-medium text-lg" readOnly {...register("finalBillAmount", { valueAsNumber: true })} />
                 {errors.finalBillAmount && <p className="text-red-500 text-xs">{errors.finalBillAmount.message}</p>}
               </div>
               
               <div className="space-y-3">
-                <Label className="block">Payment Status *</Label>
+                <Label className="block">Payment Status</Label>
                 <div className="flex flex-col sm:flex-row gap-4 p-2 bg-gray-50 rounded-xl border border-gray-200">
                   <label className="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm hover:border-blue-300 transition-colors">
                     <input type="radio" value="Paid" {...register("paymentStatus")} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
@@ -871,7 +871,7 @@ export function InventoryFormClient({
 
             {watchPaymentStatus === "Paid" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2 md:w-1/2">
-                <Label>Payment Date *</Label>
+                <Label>Payment Date</Label>
                 <Input type="date" className="h-12 text-base" {...register("paymentDate")} />
               </div>
             )}
@@ -922,7 +922,7 @@ export function InventoryFormClient({
           <form onSubmit={handleAddSupplier} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>Supplier Name</Label>
-              <Input required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
+              <Input value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
             </div>
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isAddingSupplier}>
@@ -942,7 +942,7 @@ export function InventoryFormClient({
           <form onSubmit={handleAddSite} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>Site Name</Label>
-              <Input required value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} />
+              <Input value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} />
             </div>
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isAddingSite}>
@@ -962,7 +962,7 @@ export function InventoryFormClient({
           <form onSubmit={handleAddMaterial} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>Material Name</Label>
-              <Input required value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} />
+              <Input value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

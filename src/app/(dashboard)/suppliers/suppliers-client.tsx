@@ -121,10 +121,9 @@ export function SuppliersClient({ suppliers }: { suppliers: any[] }) {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="supplier_name">Supplier Name *</Label>
+                <Label htmlFor="supplier_name">Supplier Name</Label>
                 <Input 
                   id="supplier_name"
-                  required
                   value={formData.supplier_name}
                   onChange={(e) => setFormData({...formData, supplier_name: e.target.value})}
                 />
