@@ -103,6 +103,12 @@ export function ReportsClient({ entries }: { entries: any[] }) {
     const printContent = document.querySelector('.print-area')?.innerHTML;
     if (!printContent) return;
     
+    let reportTitle = "DMR Statement Report";
+    if (activeTab === "supplier") reportTitle = "Supplier Wise Report";
+    else if (activeTab === "material") reportTitle = "Material Wise Report";
+    else if (activeTab === "site") reportTitle = "Site Wise Report";
+    else if (activeTab === "date") reportTitle = "Date Wise Report";
+    
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert("Please allow popups to print.");
@@ -112,7 +118,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
     printWindow.document.write(`
       <html>
         <head>
-          <title>DMR Report Statement</title>
+          <title>${reportTitle}</title>
           <style>
             @page { size: landscape; margin: 10mm; }
             body { font-family: system-ui, -apple-system, sans-serif; -webkit-print-color-adjust: exact; padding: 20px; }
@@ -125,7 +131,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
           </style>
         </head>
         <body>
-          <h2>DMR Statement Report</h2>
+          <h2>${reportTitle}</h2>
           ${printContent}
         </body>
       </html>
