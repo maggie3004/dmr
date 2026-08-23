@@ -268,22 +268,20 @@ export function ReportsClient({ entries }: { entries: any[] }) {
           </div>
           </div>
           
-          {activeTab === 'all' && (
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={exportPDF}
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm w-full md:w-auto justify-center"
-              >
-                <Printer className="w-4 h-4" /> Print PDF
-              </button>
-              <button
-                onClick={exportExcel}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2 text-sm w-full md:w-auto justify-center"
-              >
-                <Download className="w-4 h-4" /> Export All
-              </button>
-            </div>
-          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={exportPDF}
+              className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm w-full md:w-auto justify-center"
+            >
+              <Printer className="w-4 h-4" /> Print PDF
+            </button>
+            <button
+              onClick={exportExcel}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2 text-sm w-full md:w-auto justify-center"
+            >
+              <Download className="w-4 h-4" /> Export All
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto print-area">
