@@ -34,8 +34,7 @@ export default function LoginPage() {
         }
         setLoading(false);
       } else {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       }
     } catch (err) {
       setError("An unexpected error occurred.");
@@ -61,6 +60,7 @@ export default function LoginPage() {
                 type="email"
                 name="email"
                 required
+                autoComplete="email"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="you@example.com"
               />
@@ -74,6 +74,7 @@ export default function LoginPage() {
                 type="password"
                 name="password"
                 required
+                autoComplete="current-password"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="••••••••"
               />
