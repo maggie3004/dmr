@@ -18,34 +18,48 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(6) })
-          .safeParse(credentials);
+        try {
+          const parsedCredentials = z
+            .object({ email: z.string().email(), password: z.string().min(6) })
+            .safeParse(credentials);
 
-        if (parsedCredentials.success) {
-          const { email, password } = parsedCredentials.data;
+          if (parsedCredentials.success) {
+            const email = parsedCredentials.data.email.trim().toLowerCase();
+            const password = parsedCredentials.data.password;
 
-          const rows = await sql`
-            SELECT * FROM users WHERE email = ${email} LIMIT 1
-          `;
-          const user = rows[0];
+            const rows = await sql`
+              SELECT * FROM users WHERE LOWER(email) = ${email} LIMIT 1
+            `;
+            const user = rows[0];
 
-          if (!user) return null;
+            if (!user) {
+              console.log("[AUTH] User not found for email:", email);
+              return null;
+            }
 
-          if (user.status !== "Active") {
-            throw new InactiveUserError();
+            if (user.status !== "Active") {
+              console.log("[AUTH] User is inactive:", email);
+              throw new InactiveUserError();
+            }
+
+            const passwordsMatch = await bcrypt.compare(password, user.password);
+
+            if (passwordsMatch) {
+              return {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+              };
+            } else {
+              console.log("[AUTH] Password mismatch for user:", email);
+            }
+          } else {
+            console.log("[AUTH] Credential validation failed:", parsedCredentials.error);
           }
-
-          const passwordsMatch = await bcrypt.compare(password, user.password);
-
-          if (passwordsMatch) {
-            return {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-            };
-          }
+        } catch (err) {
+          console.error("[AUTH AUTHORIZE ERROR]:", err);
+          if (err instanceof CredentialsSignin) throw err;
         }
 
         return null;

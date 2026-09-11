@@ -7,7 +7,6 @@ export default auth((req) => {
   const isApiAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
   const isReports = req.nextUrl.pathname.startsWith("/reports");
   const isUsers = req.nextUrl.pathname.startsWith("/users");
-  // /dashboard doesn't exist as a route — (dashboard) group maps to /
   const isLegacyDashboard = req.nextUrl.pathname.startsWith("/dashboard");
 
   if (isApiAuthRoute) {
