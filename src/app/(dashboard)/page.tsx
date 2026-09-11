@@ -6,29 +6,37 @@ import { sql } from "@/lib/db";
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const session = await auth();
-
-  const todayStr      = new Date().toISOString().split('T')[0];
+  const todayStr        = new Date().toISOString().split('T')[0];
   const firstDayOfMonth = new Date();
   firstDayOfMonth.setDate(1);
-  const firstDayStr   = firstDayOfMonth.toISOString().split('T')[0];
+  const firstDayStr     = firstDayOfMonth.toISOString().split('T')[0];
 
-  // Fetch all counts and data concurrently
+  // Run auth + all DB queries in parallel — auth no longer blocks DB queries
   const [
+    session,
     totalDmrRows,
     todayDmrRows,
     monthlyDmrRows,
     totalSuppliersRows,
     totalMaterialsRows,
-    allDmrs,
+    aggregateRows,
     recentDmrs,
   ] = await Promise.all([
+    auth(),
     sql`SELECT COUNT(*)::int AS count FROM dmr_entries WHERE deleted_at IS NULL`,
     sql`SELECT COUNT(*)::int AS count FROM dmr_entries WHERE deleted_at IS NULL AND arrival_date = ${todayStr}`,
     sql`SELECT COUNT(*)::int AS count FROM dmr_entries WHERE deleted_at IS NULL AND arrival_date >= ${firstDayStr}`,
     sql`SELECT COUNT(*)::int AS count FROM suppliers WHERE deleted_at IS NULL`,
     sql`SELECT COUNT(*)::int AS count FROM materials WHERE deleted_at IS NULL`,
-    sql`SELECT payment_status, final_bill_amount, arrival_date FROM dmr_entries WHERE deleted_at IS NULL`,
+    // Aggregate in SQL — no more full-table fetch to JS
+    sql`
+      SELECT
+        COALESCE(SUM(CASE WHEN payment_status = 'Paid'     THEN final_bill_amount ELSE 0 END), 0)::numeric AS paid_total,
+        COALESCE(SUM(CASE WHEN payment_status != 'Paid'    THEN final_bill_amount ELSE 0 END), 0)::numeric AS pending_total,
+        COALESCE(SUM(CASE WHEN arrival_date >= ${firstDayStr} THEN final_bill_amount ELSE 0 END), 0)::numeric AS monthly_total
+      FROM dmr_entries
+      WHERE deleted_at IS NULL
+    `,
     sql`
       SELECT
         d.id, d.dmr_number, d.quantity, d.unit, d.final_bill_amount, d.payment_status,
@@ -43,26 +51,15 @@ export default async function DashboardPage() {
     `,
   ]);
 
-  const totalDmrCount      = totalDmrRows[0]?.count      ?? 0;
-  const todayDmrCount      = todayDmrRows[0]?.count      ?? 0;
-  const monthlyDmrCount    = monthlyDmrRows[0]?.count    ?? 0;
-  const totalSuppliersCount = totalSuppliersRows[0]?.count ?? 0;
-  const totalMaterialsCount = totalMaterialsRows[0]?.count ?? 0;
+  const totalDmrCount       = totalDmrRows[0]?.count       ?? 0;
+  const todayDmrCount       = todayDmrRows[0]?.count       ?? 0;
+  const monthlyDmrCount     = monthlyDmrRows[0]?.count     ?? 0;
+  const totalSuppliersCount = totalSuppliersRows[0]?.count  ?? 0;
+  const totalMaterialsCount = totalMaterialsRows[0]?.count  ?? 0;
 
-  let pendingPayments = 0;
-  let paidBills       = 0;
-  let monthlyExpense  = 0;
-
-  for (const dmr of allDmrs) {
-    if (dmr.payment_status === "Paid") {
-      paidBills += Number(dmr.final_bill_amount) || 0;
-    } else {
-      pendingPayments += Number(dmr.final_bill_amount) || 0;
-    }
-    if (dmr.arrival_date >= firstDayStr) {
-      monthlyExpense += Number(dmr.final_bill_amount) || 0;
-    }
-  }
+  const paidBills       = Number(aggregateRows[0]?.paid_total)    || 0;
+  const pendingPayments = Number(aggregateRows[0]?.pending_total)  || 0;
+  const monthlyExpense  = Number(aggregateRows[0]?.monthly_total)  || 0;
 
   const formatCurrency = (val: number) => {
     if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;

@@ -6,6 +6,7 @@ import { MyEntriesClient } from "./my-entries-client";
 export const dynamic = 'force-dynamic';
 
 export default async function MyEntriesPage() {
+  // auth must resolve first — we need session.user.id for the WHERE filter
   const session = await auth();
 
   if (!session?.user) {

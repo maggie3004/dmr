@@ -6,17 +6,15 @@ import { MaterialsClient } from "./materials-client";
 export const dynamic = 'force-dynamic';
 
 export default async function MaterialsPage() {
-  const session = await auth();
+  // Run auth + DB query in parallel
+  const [session, materials] = await Promise.all([
+    auth(),
+    sql`SELECT * FROM materials WHERE deleted_at IS NULL ORDER BY created_at DESC`,
+  ]);
 
   if (session?.user?.role !== "Admin") {
     redirect("/");
   }
-
-  const materials = await sql`
-    SELECT * FROM materials
-    WHERE deleted_at IS NULL
-    ORDER BY created_at DESC
-  `;
 
   return (
     <div className="space-y-6 md:space-y-8">

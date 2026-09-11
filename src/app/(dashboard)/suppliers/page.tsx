@@ -6,17 +6,15 @@ import { SuppliersClient } from "./suppliers-client";
 export const dynamic = 'force-dynamic';
 
 export default async function SuppliersPage() {
-  const session = await auth();
+  // Run auth + DB query in parallel
+  const [session, suppliers] = await Promise.all([
+    auth(),
+    sql`SELECT * FROM suppliers WHERE deleted_at IS NULL ORDER BY created_at DESC`,
+  ]);
 
   if (session?.user?.role !== "Admin") {
     redirect("/");
   }
-
-  const suppliers = await sql`
-    SELECT * FROM suppliers
-    WHERE deleted_at IS NULL
-    ORDER BY created_at DESC
-  `;
 
   return (
     <div className="space-y-6 md:space-y-8">

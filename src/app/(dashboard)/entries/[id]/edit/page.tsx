@@ -8,13 +8,15 @@ import Link from "next/link";
 export const dynamic = 'force-dynamic';
 
 export default async function EditEntryPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  // Run auth + params resolution concurrently, then fire all DB queries at once
+  const [session, { id }] = await Promise.all([
+    auth(),
+    params,
+  ]);
 
   if (session?.user?.role !== "Admin") {
     redirect("/");
   }
-
-  const { id } = await params;
 
   const [entryRows, suppliers, materials, sites] = await Promise.all([
     sql`SELECT * FROM dmr_entries WHERE id = ${id}::uuid AND deleted_at IS NULL LIMIT 1`,

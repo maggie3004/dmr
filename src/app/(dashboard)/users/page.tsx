@@ -6,17 +6,15 @@ import { UsersClient } from "./users-client";
 export const dynamic = 'force-dynamic';
 
 export default async function UsersPage() {
-  const session = await auth();
+  // Run auth + DB query in parallel
+  const [session, users] = await Promise.all([
+    auth(),
+    sql`SELECT id, name, email, role, status, created_at FROM users ORDER BY created_at DESC`,
+  ]);
 
   if (session?.user?.role !== "Admin") {
     redirect("/");
   }
-
-  const users = await sql`
-    SELECT id, name, email, role, status, created_at
-    FROM users
-    ORDER BY created_at DESC
-  `;
 
   return (
     <div className="space-y-6 md:space-y-8">
