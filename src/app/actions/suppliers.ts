@@ -1,13 +1,8 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
-import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { sql } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
 export async function addSupplier(data: { supplier_name: string; contact_number?: string; address?: string; gst_number?: string }) {
   const session = await auth();
@@ -17,26 +12,29 @@ export async function addSupplier(data: { supplier_name: string; contact_number?
 
   try {
     // Check for duplicates (case-insensitive)
-    const { data: existing } = await supabase
-      .from('suppliers')
-      .select('id')
-      .ilike('supplier_name', data.supplier_name)
-      .is('deleted_at', null)
-      .limit(1)
-      .maybeSingle();
+    const existing = await sql`
+      SELECT id FROM suppliers
+      WHERE LOWER(supplier_name) = LOWER(${data.supplier_name})
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
 
-    if (existing) {
+    if (existing.length > 0) {
       return { success: false, error: "A supplier with this name already exists." };
     }
 
-    const { data: newSupplier, error } = await supabase
-      .from('suppliers')
-      .insert([data])
-      .select()
-      .single();
+    const [newSupplier] = await sql`
+      INSERT INTO suppliers (supplier_name, contact_number, address, gst_number, created_by)
+      VALUES (
+        ${data.supplier_name},
+        ${data.contact_number ?? null},
+        ${data.address ?? null},
+        ${data.gst_number ?? null},
+        ${session.user.id}
+      )
+      RETURNING *
+    `;
 
-    if (error) throw error;
-    
     revalidatePath("/", "layout");
     return { success: true, supplier: newSupplier };
   } catch (error: any) {
@@ -52,26 +50,30 @@ export async function updateSupplier(id: string, data: { supplier_name: string; 
   }
 
   try {
-    const { data: existing } = await supabase
-      .from('suppliers')
-      .select('id')
-      .ilike('supplier_name', data.supplier_name)
-      .neq('id', id)
-      .is('deleted_at', null)
-      .limit(1)
-      .maybeSingle();
+    const existing = await sql`
+      SELECT id FROM suppliers
+      WHERE LOWER(supplier_name) = LOWER(${data.supplier_name})
+        AND id != ${id}::uuid
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
 
-    if (existing) {
+    if (existing.length > 0) {
       return { success: false, error: "A supplier with this name already exists." };
     }
 
-    const { error } = await supabase
-      .from('suppliers')
-      .update({ ...data, updated_at: new Date().toISOString(), updated_by: session.user.id })
-      .eq('id', id);
+    await sql`
+      UPDATE suppliers
+      SET
+        supplier_name  = ${data.supplier_name},
+        contact_number = ${data.contact_number ?? null},
+        address        = ${data.address ?? null},
+        gst_number     = ${data.gst_number ?? null},
+        updated_at     = NOW(),
+        updated_by     = ${session.user.id}::uuid
+      WHERE id = ${id}::uuid
+    `;
 
-    if (error) throw error;
-    
     revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
@@ -87,14 +89,12 @@ export async function deleteSupplier(id: string) {
   }
 
   try {
-    // Soft Delete
-    const { error } = await supabase
-      .from('suppliers')
-      .update({ deleted_at: new Date().toISOString(), deleted_by: session.user.id })
-      .eq('id', id);
+    await sql`
+      UPDATE suppliers
+      SET deleted_at = NOW(), deleted_by = ${session.user.id}::uuid
+      WHERE id = ${id}::uuid
+    `;
 
-    if (error) throw error;
-    
     revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {

@@ -1,13 +1,8 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
-import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { sql } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
 export async function addMaterial(data: { material_name: string; default_unit?: string; default_rate?: number }) {
   const session = await auth();
@@ -17,26 +12,28 @@ export async function addMaterial(data: { material_name: string; default_unit?: 
 
   try {
     // Check for duplicates (case-insensitive)
-    const { data: existing } = await supabase
-      .from('materials')
-      .select('id')
-      .ilike('material_name', data.material_name)
-      .is('deleted_at', null)
-      .limit(1)
-      .maybeSingle();
+    const existing = await sql`
+      SELECT id FROM materials
+      WHERE LOWER(material_name) = LOWER(${data.material_name})
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
 
-    if (existing) {
+    if (existing.length > 0) {
       return { success: false, error: "A material with this name already exists." };
     }
 
-    const { data: newMaterial, error } = await supabase
-      .from('materials')
-      .insert([data])
-      .select()
-      .single();
+    const [newMaterial] = await sql`
+      INSERT INTO materials (material_name, default_unit, default_rate, created_by)
+      VALUES (
+        ${data.material_name},
+        ${data.default_unit ?? null},
+        ${data.default_rate ?? null},
+        ${session.user.id}::uuid
+      )
+      RETURNING *
+    `;
 
-    if (error) throw error;
-    
     revalidatePath("/", "layout");
     return { success: true, material: newMaterial };
   } catch (error: any) {
@@ -52,26 +49,29 @@ export async function updateMaterial(id: string, data: { material_name: string; 
   }
 
   try {
-    const { data: existing } = await supabase
-      .from('materials')
-      .select('id')
-      .ilike('material_name', data.material_name)
-      .neq('id', id)
-      .is('deleted_at', null)
-      .limit(1)
-      .maybeSingle();
+    const existing = await sql`
+      SELECT id FROM materials
+      WHERE LOWER(material_name) = LOWER(${data.material_name})
+        AND id != ${id}::uuid
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
 
-    if (existing) {
+    if (existing.length > 0) {
       return { success: false, error: "A material with this name already exists." };
     }
 
-    const { error } = await supabase
-      .from('materials')
-      .update({ ...data, updated_at: new Date().toISOString(), updated_by: session.user.id })
-      .eq('id', id);
+    await sql`
+      UPDATE materials
+      SET
+        material_name = ${data.material_name},
+        default_unit  = ${data.default_unit ?? null},
+        default_rate  = ${data.default_rate ?? null},
+        updated_at    = NOW(),
+        updated_by    = ${session.user.id}::uuid
+      WHERE id = ${id}::uuid
+    `;
 
-    if (error) throw error;
-    
     revalidatePath("/", "layout");
     return { success: true };
   } catch (error: any) {
@@ -87,14 +87,12 @@ export async function deleteMaterial(id: string) {
   }
 
   try {
-    // Soft Delete
-    const { error } = await supabase
-      .from('materials')
-      .update({ deleted_at: new Date().toISOString(), deleted_by: session.user.id })
-      .eq('id', id);
+    await sql`
+      UPDATE materials
+      SET deleted_at = NOW(), deleted_by = ${session.user.id}::uuid
+      WHERE id = ${id}::uuid
+    `;
 
-    if (error) throw error;
-    
     revalidatePath("/", "layout");
     revalidatePath("/inventory-form");
     return { success: true };

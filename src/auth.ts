@@ -2,17 +2,11 @@ import NextAuth, { CredentialsSignin } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
-import { createClient } from "@supabase/supabase-js"
+import { sql } from "@/lib/db"
 
 class InactiveUserError extends CredentialsSignin {
   code = "inactive_account";
 }
-
-// We create a server-side Supabase client to verify credentials
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -29,15 +23,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
-          
-          const { data: user, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("email", email)
-            .single();
 
-          if (error || !user) return null;
-          
+          const rows = await sql`
+            SELECT * FROM users WHERE email = ${email} LIMIT 1
+          `;
+          const user = rows[0];
+
+          if (!user) return null;
+
           if (user.status !== "Active") {
             throw new InactiveUserError();
           }

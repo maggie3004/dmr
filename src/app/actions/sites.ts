@@ -1,13 +1,8 @@
 "use server";
 
 import { auth } from "@/auth";
-import { createClient } from "@supabase/supabase-js";
+import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function getSites() {
   try {
@@ -16,18 +11,13 @@ export async function getSites() {
       return { success: false, error: "Unauthorized" };
     }
 
-    const { data, error } = await supabase
-      .from("sites")
-      .select("*")
-      .eq("is_active", true)
-      .is("deleted_at", null)
-      .order("site_name");
+    const sites = await sql`
+      SELECT * FROM sites
+      WHERE is_active = true AND deleted_at IS NULL
+      ORDER BY site_name ASC
+    `;
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, sites: data };
+    return { success: true, sites };
   } catch (error: any) {
     console.error("Action error:", error);
     return { success: false, error: "An unexpected error occurred." };
@@ -41,20 +31,11 @@ export async function addSite(data: { site_name: string }) {
       return { success: false, error: "Unauthorized" };
     }
 
-    const payload = {
-      site_name: data.site_name,
-      created_by: session.user.id,
-    };
-
-    const { data: newSite, error } = await supabase
-      .from("sites")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
+    const [newSite] = await sql`
+      INSERT INTO sites (site_name, created_by)
+      VALUES (${data.site_name}, ${session.user.id}::uuid)
+      RETURNING *
+    `;
 
     revalidatePath("/", "layout");
     return { success: true, site: newSite };

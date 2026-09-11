@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { createClient } from "@supabase/supabase-js";
+import { sql } from "@/lib/db";
 
 export type NotificationType = {
   id: string;
@@ -12,11 +12,6 @@ export type NotificationType = {
   link: string;
 };
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function getNotifications(): Promise<NotificationType[]> {
   try {
     const session = await auth();
@@ -24,29 +19,28 @@ export async function getNotifications(): Promise<NotificationType[]> {
       return [];
     }
 
-    // Fetch the 10 most recent DMR entries
-    const { data: entries, error } = await supabase
-      .from('dmr_entries')
-      .select('id, dmr_number, created_at, suppliers(supplier_name)')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    // Fetch the 10 most recent DMR entries with supplier name
+    const entries = await sql`
+      SELECT
+        d.id,
+        d.dmr_number,
+        d.created_at,
+        s.supplier_name
+      FROM dmr_entries d
+      LEFT JOIN suppliers s ON d.supplier_id = s.id
+      WHERE d.deleted_at IS NULL
+      ORDER BY d.created_at DESC
+      LIMIT 10
+    `;
 
-    if (error || !entries) {
-      console.error("Error fetching notifications:", error);
-      return [];
-    }
-
-    // Format them as notifications
     return entries.map((entry: any) => ({
       id: entry.id,
       title: `New DMR: ${entry.dmr_number}`,
-      description: `Material received from ${entry.suppliers?.supplier_name || 'Unknown Supplier'}.`,
+      description: `Material received from ${entry.supplier_name || "Unknown Supplier"}.`,
       date: new Date(entry.created_at).toISOString(),
-      read: false, // Default to unread for this derived view
-      link: `/entries` // Simple link to entries page
+      read: false,
+      link: `/entries`,
     }));
-
   } catch (error) {
     console.error("Error in getNotifications:", error);
     return [];

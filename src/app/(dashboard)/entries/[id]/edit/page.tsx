@@ -1,14 +1,9 @@
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { sql } from "@/lib/db";
 import { InventoryFormClient } from "../../../inventory-form/inventory-form-client";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export const dynamic = 'force-dynamic';
 
@@ -21,27 +16,17 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
 
   const { id } = await params;
 
-  // Fetch the entry
-  const { data: entry } = await supabase
-    .from('dmr_entries')
-    .select('*')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .single();
+  const [entryRows, suppliers, materials, sites] = await Promise.all([
+    sql`SELECT * FROM dmr_entries WHERE id = ${id}::uuid AND deleted_at IS NULL LIMIT 1`,
+    sql`SELECT id, supplier_name FROM suppliers WHERE deleted_at IS NULL ORDER BY supplier_name ASC`,
+    sql`SELECT id, material_name, default_unit, default_rate FROM materials WHERE deleted_at IS NULL ORDER BY material_name ASC`,
+    sql`SELECT id, site_name FROM sites WHERE deleted_at IS NULL ORDER BY site_name ASC`,
+  ]);
 
+  const entry = entryRows[0];
   if (!entry) {
     notFound();
   }
-
-  // Fetch materials and suppliers for form
-  const { data: suppliersData } = await supabase.from('suppliers').select('id, supplier_name').is('deleted_at', null);
-  const suppliers = suppliersData || [];
-
-  const { data: materialsData } = await supabase.from('materials').select('id, material_name, default_unit, default_rate').is('deleted_at', null).order('material_name');
-  const materials = materialsData || [];
-
-  const { data: sitesData } = await supabase.from('sites').select('id, site_name').is('deleted_at', null).order('site_name');
-  const sites = sitesData || [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">

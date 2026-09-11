@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { Download, Printer, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,34 +69,75 @@ export function ReportsClient({ entries }: { entries: any[] }) {
     return groups;
   }, [filteredEntries, activeTab]);
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (filteredEntries.length === 0) {
       alert("No data to export.");
       return;
     }
-    const wb = XLSX.utils.book_new();
-    
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "DMR Portal";
+    wb.created = new Date();
+
     Object.entries(groupedEntries).forEach(([groupName, groupData]) => {
       if (groupData.length === 0) return;
-      const ws = XLSX.utils.json_to_sheet(groupData.map(e => ({
-        "DMR Number": e.dmr_number,
-        "Date": new Date(e.arrival_date).toLocaleDateString(),
-        "Supplier": e.suppliers?.supplier_name || 'Unknown',
-        "Material": e.materials?.material_name || e.material_name || '-',
-        "Site": e.sites?.site_name || '-',
-        "Quantity": e.quantity,
-        "Unit": e.unit,
-        "Rate": e.rate_per_unit,
-        "Total Amount": e.final_bill_amount,
-        "Vehicle": e.vehicle_number,
-        "Payment": e.payment_status,
-      })));
-      let sheetName = groupName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
+
+      let sheetName = groupName.substring(0, 31).replace(/[\\/\?\*\[\]:]/g, "");
       if (!sheetName) sheetName = "Sheet";
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      const ws = wb.addWorksheet(sheetName);
+
+      ws.columns = [
+        { header: "DMR Number",   key: "dmr",     width: 20 },
+        { header: "Date",         key: "date",    width: 14 },
+        { header: "Supplier",     key: "supplier", width: 22 },
+        { header: "Material",     key: "material", width: 20 },
+        { header: "Site",         key: "site",    width: 18 },
+        { header: "Quantity",     key: "qty",     width: 10 },
+        { header: "Unit",         key: "unit",    width: 10 },
+        { header: "Rate",         key: "rate",    width: 12 },
+        { header: "Total Amount", key: "amount",  width: 14 },
+        { header: "Vehicle",      key: "vehicle", width: 16 },
+        { header: "Payment",      key: "payment", width: 12 },
+      ];
+
+      // Style header row
+      const headerRow = ws.getRow(1);
+      headerRow.font = { bold: true, color: { argb: "FF475569" } };
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF1F5F9" },
+      };
+      headerRow.alignment = { vertical: "middle" };
+
+      groupData.forEach((e) => {
+        ws.addRow({
+          dmr:      e.dmr_number,
+          date:     new Date(e.arrival_date).toLocaleDateString(),
+          supplier: e.suppliers?.supplier_name || "Unknown",
+          material: e.materials?.material_name || e.material_name || "-",
+          site:     e.sites?.site_name || "-",
+          qty:      e.quantity,
+          unit:     e.unit,
+          rate:     e.rate_per_unit,
+          amount:   e.final_bill_amount,
+          vehicle:  e.vehicle_number || "-",
+          payment:  e.payment_status,
+        });
+      });
     });
-    
-    XLSX.writeFile(wb, `DMR_Report_${activeTab}.xlsx`);
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `DMR_Report_${activeTab}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const exportPDF = () => {
@@ -282,7 +323,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
               <Printer className="w-4 h-4" /> Print PDF
             </button>
             <button
-              onClick={exportExcel}
+              onClick={() => exportExcel()}
               className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2 text-sm w-full md:w-auto justify-center"
             >
               <Download className="w-4 h-4" /> Export All

@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Search, Edit, MoreVertical, CreditCard, Upload, Printer, Trash2 } from "lucide-react";
 import { updatePaymentStatus, bulkUploadInventory, deleteDmrEntry } from "@/app/actions/inventory";
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 import {
   Table,
@@ -88,8 +88,31 @@ export function EntriesClient({
     }
   };
 
-  const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([{
+  const downloadTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Template");
+
+    const columns = [
+      "Arrival Date", "Supplier Name", "Material Name", "Site Name",
+      "Quantity", "Unit", "Vehicle Number", "Invoice Number",
+      "Rate Per Unit", "Final Bill Amount", "Payment Status", "Remarks"
+    ];
+
+    ws.columns = columns.map((header) => ({
+      header,
+      key: header,
+      width: Math.max(header.length + 4, 16),
+    }));
+
+    // Style header row
+    ws.getRow(1).font = { bold: true };
+    ws.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE2E8F0" },
+    };
+
+    ws.addRow({
       "Arrival Date": "2026-07-29",
       "Supplier Name": "ABC Supplier",
       "Material Name": "Sand",
@@ -101,11 +124,19 @@ export function EntriesClient({
       "Rate Per Unit": "50",
       "Final Bill Amount": "5000",
       "Payment Status": "Paid",
-      "Remarks": "Sample entry"
-    }]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "DMR_Bulk_Upload_Template.xlsx");
+      "Remarks": "Sample entry",
+    });
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "DMR_Bulk_Upload_Template.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,10 +145,37 @@ export function EntriesClient({
 
     setIsUploading(true);
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const arrayBuffer = await file.arrayBuffer();
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(arrayBuffer);
+
+      const ws = wb.worksheets[0];
+      if (!ws) {
+        alert("The uploaded file is empty.");
+        return;
+      }
+
+      // Extract header row
+      const headerRow = ws.getRow(1);
+      const headers: string[] = [];
+      headerRow.eachCell((cell) => {
+        headers.push(String(cell.value ?? ""));
+      });
+
+      // Convert remaining rows to objects
+      const jsonData: Record<string, string>[] = [];
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        const obj: Record<string, string> = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          const header = headers[colNumber - 1];
+          if (header) obj[header] = String(cell.value ?? "");
+        });
+        // Only include rows that have at least one non-empty value
+        if (Object.values(obj).some((v) => v !== "")) {
+          jsonData.push(obj);
+        }
+      });
 
       if (jsonData.length === 0) {
         alert("The uploaded file is empty.");
@@ -155,7 +213,7 @@ export function EntriesClient({
           />
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          <Button variant="outline" onClick={downloadTemplate} className="bg-white w-full">
+          <Button variant="outline" onClick={() => downloadTemplate()} className="bg-white w-full">
             Template
           </Button>
           <input 
