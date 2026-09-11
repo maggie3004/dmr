@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Users, 
   Settings, 
-  LogOut 
+  LogOut,
+  Bell
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -30,6 +31,7 @@ export function Sidebar({ role, isOpen, setIsOpen }: SidebarProps) {
     { name: "Suppliers", href: "/suppliers", icon: Users, roles: ["Admin"] },
     { name: "Materials", href: "/materials", icon: LayoutDashboard, roles: ["Admin"] },
     { name: "Manage Users", href: "/users", icon: Users, roles: ["Admin"] },
+    { name: "Notifications", href: "/notifications", icon: Bell, roles: ["Admin", "Supervisor"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["Admin", "Supervisor"] },
   ];
 

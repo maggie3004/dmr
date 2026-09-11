@@ -10,6 +10,7 @@ export type NotificationType = {
   date: string;
   read: boolean;
   link: string;
+  category?: string;
 };
 
 export async function getNotifications(): Promise<NotificationType[]> {

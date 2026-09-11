@@ -128,11 +128,11 @@ export function NotificationsDropdown() {
           {notifications.length > 0 && (
             <div className="bg-gray-50 border-t border-gray-100 p-2 text-center">
               <Link 
-                href="/entries" 
+                href="/notifications" 
                 onClick={() => setIsOpen(false)}
                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors inline-block py-1 px-2"
               >
-                View all activity
+                View all notifications
               </Link>
             </div>
           )}
