@@ -850,7 +850,7 @@ export function InventoryFormClient({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Final Bill Amount (₹)</Label>
-                <Input type="number" step="any" className="h-11 bg-gray-50 font-medium text-lg" readOnly {...register("finalBillAmount", { valueAsNumber: true })} />
+                <Input type="number" step="any" className="h-11 font-medium text-lg" {...register("finalBillAmount", { valueAsNumber: true })} />
                 {errors.finalBillAmount && <p className="text-red-500 text-xs">{errors.finalBillAmount.message}</p>}
               </div>
               
