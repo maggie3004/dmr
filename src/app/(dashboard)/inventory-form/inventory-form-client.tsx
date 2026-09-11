@@ -5,7 +5,6 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Check, ChevronsUpDown, Plus, Image as ImageIcon, Camera, Upload, ScanLine } from "lucide-react";
-import Tesseract from 'tesseract.js';
 
 import { submitInventoryForm, updateDmrEntry } from "@/app/actions/inventory";
 import { addSupplier } from "@/app/actions/suppliers";
@@ -190,7 +189,8 @@ export function InventoryFormClient({
       const performOCR = async () => {
         setIsOcrLoading(true);
         try {
-          const worker = await Tesseract.createWorker('eng');
+          const { createWorker } = await import('tesseract.js');
+          const worker = await createWorker('eng');
           await worker.setParameters({
             tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
           });

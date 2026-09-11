@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import ExcelJS from "exceljs";
 import { Download, Printer, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,6 +74,7 @@ export function ReportsClient({ entries }: { entries: any[] }) {
       return;
     }
 
+    const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     wb.creator = "DMR Portal";
     wb.created = new Date();
