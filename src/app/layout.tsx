@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "DMR Web Portal | Daily Material Report",
   description: "Daily Material Report portal for tracking construction materials, suppliers, and payments.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport = {

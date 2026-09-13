@@ -49,10 +49,8 @@ export function Sidebar({ role, isOpen, setIsOpen }: SidebarProps) {
       )}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 shadow-xl transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex items-center h-16 px-6 border-b border-slate-800">
-        <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <span className="text-white text-sm">DMR</span>
-          </div>
+        <div className="flex items-center gap-2.5 text-white font-bold text-xl tracking-tight">
+          <img src="/logo.png" alt="DMR Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
           Portal
         </div>
       </div>
