@@ -77,7 +77,7 @@ export async function submitInventoryForm(formData: FormData): Promise<{ success
     const gst_amount     = formData.get("gstAmount")     ? parseFloat(formData.get("gstAmount")     as string) : null;
     const final_bill     = parseFloat(formData.get("finalBillAmount") as string);
 
-    await sql`
+    const [newEntry] = await sql`
       INSERT INTO dmr_entries (
         dmr_number, arrival_date, supplier_id, material_id, site_id,
         quantity, unit, vehicle_number, invoice_number,
@@ -109,7 +109,36 @@ export async function submitInventoryForm(formData: FormData): Promise<{ success
         ${formData.get("remarks")       || null},
         ${session.user.id}::uuid
       )
+      RETURNING id
     `;
+
+    // Process additional site allocations if provided
+    const additionalSitesRaw = formData.get("additionalSites") as string;
+    if (additionalSitesRaw && newEntry?.id) {
+      try {
+        const additionalSites = JSON.parse(additionalSitesRaw);
+        if (Array.isArray(additionalSites)) {
+          for (const item of additionalSites) {
+            if (item.siteId) {
+              const itemQty = parseFloat(item.quantity);
+              const itemAmt = parseFloat(item.amount);
+              await sql`
+                INSERT INTO dmr_entry_sites (entry_id, site_id, allocated_quantity, allocated_amount, remarks)
+                VALUES (
+                  ${newEntry.id}::uuid,
+                  ${item.siteId}::uuid,
+                  ${isNaN(itemQty) ? null : itemQty},
+                  ${isNaN(itemAmt) ? null : itemAmt},
+                  ${item.remarks || null}
+                )
+              `;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to parse additionalSites JSON:", err);
+      }
+    }
 
     revalidatePath("/", "layout");
     return { success: true, dmrNumber: dmr_number };
@@ -195,6 +224,35 @@ export async function updateDmrEntry(id: string, formData: FormData): Promise<{ 
         bill_image       = COALESCE(${bill_image     ?? null}, bill_image)
       WHERE id = ${id}::uuid
     `;
+
+    // Reset and re-insert additional site allocations if provided
+    const additionalSitesRaw = formData.get("additionalSites") as string;
+    if (additionalSitesRaw !== null) {
+      await sql`DELETE FROM dmr_entry_sites WHERE entry_id = ${id}::uuid`;
+      try {
+        const additionalSites = JSON.parse(additionalSitesRaw);
+        if (Array.isArray(additionalSites)) {
+          for (const item of additionalSites) {
+            if (item.siteId) {
+              const itemQty = parseFloat(item.quantity);
+              const itemAmt = parseFloat(item.amount);
+              await sql`
+                INSERT INTO dmr_entry_sites (entry_id, site_id, allocated_quantity, allocated_amount, remarks)
+                VALUES (
+                  ${id}::uuid,
+                  ${item.siteId}::uuid,
+                  ${isNaN(itemQty) ? null : itemQty},
+                  ${isNaN(itemAmt) ? null : itemAmt},
+                  ${item.remarks || null}
+                )
+              `;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to parse additionalSites JSON:", err);
+      }
+    }
 
     revalidatePath("/", "layout");
     return { success: true };

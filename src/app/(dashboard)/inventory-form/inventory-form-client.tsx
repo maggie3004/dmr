@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Check, ChevronsUpDown, Plus, Image as ImageIcon, Camera, Upload, ScanLine } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, Plus, Image as ImageIcon, Camera, Upload, ScanLine, Building2, Trash2 } from "lucide-react";
 
 import { submitInventoryForm, updateDmrEntry } from "@/app/actions/inventory";
 import { addSupplier } from "@/app/actions/suppliers";
@@ -100,6 +100,8 @@ export function InventoryFormClient({
   const [supplierSearch, setSupplierSearch] = useState("");
   const [materialSearch, setMaterialSearch] = useState("");
   const [siteSearch, setSiteSearch] = useState("");
+
+  const [additionalSites, setAdditionalSites] = useState<{ siteId: string; quantity: string; amount: string; remarks: string }[]>([]);
 
   const [addSupplierOpen, setAddSupplierOpen] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
@@ -368,6 +370,10 @@ export function InventoryFormClient({
       if (vehiclePhoto) formData.append("vehiclePhoto", vehiclePhoto);
       if (challanPhoto) formData.append("challanPhoto", challanPhoto);
       if (billPhoto) formData.append("billPhoto", billPhoto);
+
+      if (additionalSites && additionalSites.length > 0) {
+        formData.append("additionalSites", JSON.stringify(additionalSites));
+      }
 
       let result;
       if (initialData) {
@@ -655,6 +661,91 @@ export function InventoryFormClient({
                 />
                 {errors.siteId && <p className="text-red-500 text-xs">{errors.siteId.message}</p>}
               </div>
+            </div>
+
+            {/* Optional Multi-Site Split Allocation */}
+            <div className="pt-2 border-t border-gray-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-blue-600" /> Split / Allocate to Additional Site(s) (Optional)
+                  </span>
+                  <p className="text-[11px] text-gray-500">Use if this material delivery is distributed across multiple construction sites.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAdditionalSites([...additionalSites, { siteId: "", quantity: "", amount: "", remarks: "" }])}
+                  className="text-xs h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Additional Site
+                </Button>
+              </div>
+
+              {additionalSites.length > 0 && (
+                <div className="space-y-2 bg-gray-50/80 p-3 rounded-xl border border-gray-200/80">
+                  {additionalSites.map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-lg border border-gray-200/60 shadow-sm">
+                      <div className="sm:col-span-5">
+                        <select
+                          value={row.siteId}
+                          onChange={(e) => {
+                            const updated = [...additionalSites];
+                            updated[idx].siteId = e.target.value;
+                            setAdditionalSites(updated);
+                          }}
+                          className="w-full h-9 px-2.5 text-xs rounded-md border border-gray-300 bg-white focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Select Additional Site...</option>
+                          {sites.map(s => (
+                            <option key={s.id} value={s.id}>{s.site_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="sm:col-span-3">
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="Allocated Qty"
+                          value={row.quantity}
+                          onChange={(e) => {
+                            const updated = [...additionalSites];
+                            updated[idx].quantity = e.target.value;
+                            setAdditionalSites(updated);
+                          }}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <div className="sm:col-span-3">
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="Amount (₹)"
+                          value={row.amount}
+                          onChange={(e) => {
+                            const updated = [...additionalSites];
+                            updated[idx].amount = e.target.value;
+                            setAdditionalSites(updated);
+                          }}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <div className="sm:col-span-1 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAdditionalSites(additionalSites.filter((_, i) => i !== idx))}
+                          className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

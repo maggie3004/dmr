@@ -9,7 +9,8 @@ import {
   Users, 
   Settings, 
   LogOut,
-  Bell
+  Bell,
+  Building2
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -30,6 +31,7 @@ export function Sidebar({ role, isOpen, setIsOpen }: SidebarProps) {
     { name: "Reports", href: "/reports", icon: BarChart3, roles: ["Admin"] },
     { name: "Suppliers", href: "/suppliers", icon: Users, roles: ["Admin"] },
     { name: "Materials", href: "/materials", icon: LayoutDashboard, roles: ["Admin"] },
+    { name: "Sites", href: "/sites", icon: Building2, roles: ["Admin"] },
     { name: "Manage Users", href: "/users", icon: Users, roles: ["Admin"] },
     { name: "Notifications", href: "/notifications", icon: Bell, roles: ["Admin", "Supervisor"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["Admin", "Supervisor"] },

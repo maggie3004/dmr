@@ -7,6 +7,7 @@ export default auth((req) => {
   const isApiAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
   const isReports = req.nextUrl.pathname.startsWith("/reports");
   const isUsers = req.nextUrl.pathname.startsWith("/users");
+  const isSites = req.nextUrl.pathname.startsWith("/sites");
   const isLegacyDashboard = req.nextUrl.pathname.startsWith("/dashboard");
 
   if (isApiAuthRoute) {
@@ -38,7 +39,7 @@ export default auth((req) => {
   // Role based protection
   const userRole = req.auth?.user?.role;
 
-  if ((isReports || isUsers) && userRole !== "Admin") {
+  if ((isReports || isUsers || isSites) && userRole !== "Admin") {
     return NextResponse.redirect(new URL("/", req.nextUrl));
   }
 
